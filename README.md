@@ -1,3 +1,3 @@
 # PPyG
 
-Library for PPG (Photoplethysmogram) processing.
+Library for PPG (Photoplethysmogram) Processing.
