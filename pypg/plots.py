@@ -56,12 +56,9 @@ def simple_plot(ppg, filter_name=None, filter_type=None, cutoff_frequencies=None
     _, axis = plt.subplots(figsize=(10, 5))
     axis.spines['top'].set_color('none')
     axis.spines['right'].set_color('none')
-    axis.spines['left'].set_smart_bounds(True)
-    axis.spines['bottom'].set_smart_bounds(True)
     axis.yaxis.grid(color='#333F4B', linestyle=':', linewidth=0.2, which='major')
 
     axis.set_title(title, fontsize=16)
-    axis.set_xlabel('Time', fontsize=14)
     axis.set_ylabel('Amplitude', fontsize=14)
     plt.plot(ppg, label=label, color='#e8335e')
     plt.legend()
