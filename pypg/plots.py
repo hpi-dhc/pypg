@@ -1,67 +1,108 @@
 """
-====================================
+=============================================
 Plots for PPG Signals (:mod:`pypg.plots`)
-====================================
+=============================================
 
 Plots
 ----------
-
-    simple_plot  - Plots a raw or filtered PPG signal.
+    simple_plot - Plots a PPG signal.
+    marks_plot  - Plots a PPG signal with marks (e. g. peaks or valleys).
 
 """
 
 import matplotlib.pyplot as plt
 
 
-def simple_plot(ppg, filter_name=None, filter_type=None, cutoff_frequencies=None, figure_path=None):
+def _configure_plot(title=None, y_axis=None, x_axis=None):
     """
-    Plots raw or filtered PPG signals.
+    Configures the plot colors, axis, font sizes, etc.
 
     Parameters
     ----------
-        ppg : pandas.Series or ndarray
-              The raw PPG signal.
-        filter_name : str, optional
-              Name of the filter (e. g. butterworth).
-        filter_type : str, optional
-              Filter type (low, high, band - pass).
-        cutoff_frequencies : int or list, optional
-              The cutoff frequency(ies if bandpass) for the filter.
-        figure_path : str, optional
-              Path to save the graph as a pdf figure.
+        title : str, optional
+            Title of the plot, by default None.
+        y_axis : str, optional
+            Y axis name, by default None.
+        x_axis : str, optional
+            X axis name, by default None.
     """
-    # define the parameters of the figure
+    # defines the parameters of the figure
     plt.rcParams.update({'font.size': 12})
     plt.rcParams['axes.edgecolor'] = '#333F4B'
     plt.rcParams['axes.linewidth'] = 0.8
     plt.rcParams['xtick.color'] = '#333F4B'
     plt.rcParams['ytick.color'] = '#333F4B'
 
-    label = 'PPG Signal'
-    title = 'PPG Signal'
-    if filter_name:
-        title = 'Filtered Signal'
-        label = filter_name
-        if filter_type:
-            label = label+' '+filter_type+' '+'filter'
-        if cutoff_frequencies:
-            if isinstance(cutoff_frequencies, list):
-                cut = ', '.join(str(s) for s in cutoff_frequencies)
-                cut = ' ['+cut+']'
-            elif isinstance(cutoff_frequencies, int):
-                cut = str(cutoff_frequencies)
-            label = label+cut+' Hz'
-
-    # change the style of the axis spines
+    # changes the style of the axis spines
     _, axis = plt.subplots(figsize=(10, 5))
     axis.spines['top'].set_color('none')
     axis.spines['right'].set_color('none')
     axis.yaxis.grid(color='#333F4B', linestyle=':', linewidth=0.2, which='major')
 
-    axis.set_title(title, fontsize=16)
-    axis.set_ylabel('Amplitude', fontsize=14)
+    if title:
+        axis.set_title(title, fontsize=16)
+    if y_axis:
+        axis.set_ylabel(y_axis, fontsize=14)
+    if x_axis:
+        axis.set_xlabel(x_axis, fontsize=14)
+
+def simple_plot(ppg, title='PPG Signal', label='PPG Signal', y_axis='Amplitude',
+                x_axis=None, figure_path=None):
+    """
+    Plots PPG signals.
+
+    Parameters
+    ----------
+        ppg : pandas.Series or ndarray
+            The PPG signal.
+        title : str, optional
+            Title of the plot, by default 'PPG Signal'.
+        label : str, optional
+            Label of the plotted data, by default 'PPG Signal'.
+        y_axis : str, optional
+            Y axis name, by default 'Amplitude'.
+        x_axis : str, optional
+            X axis name, by default None.
+        figure_path : str, optional
+            The path for the plot to be saved, by default None.
+    """
+    _configure_plot(title, y_axis, x_axis)
     plt.plot(ppg, label=label, color='#e8335e')
     plt.legend()
+    if figure_path:
+        plt.savefig(figure_path, dpi=300, bbox_inches='tight', format="pdf")
+    plt.show()
+    plt.close()
+
+def marks_plot(ppg, marks, title='PPG Signal with Marks', label_ppg='PPG Signal',
+               label_marks='Marks', y_axis='Amplitude', x_axis=None, figure_path=None):
+    """
+    Plots PPG signals with marks.
+
+    Parameters
+    ----------
+        ppg : pandas.Series or ndarray
+            The PPG signal.
+        marks : ndarray
+            Marks to be plotted agains the PPG signal.
+        title : str, optional
+            Title of the plot, by default 'PPG Signal'.
+        label_ppg : str, optional
+            Label for the PPG signal, by default 'PPG Signal'.
+        label_marks : str, optional
+            Label for the marks, by default 'Marks'.
+        y_axis : str, optional
+            Y axis name, by default 'Amplitude'.
+        x_axis : str, optional
+            X axis name, by default None.
+        figure_path : str, optional
+            The path for the plot to be saved, by default None.
+    """
+    _configure_plot(title, y_axis, x_axis)
+    plt.plot(ppg, color='#e8335e')
+    for mark in marks:
+        plt.plot(mark, ppg[mark], marker='X', markersize=8, color='#6233E8')
+    plt.legend([label_ppg, label_marks])
     if figure_path:
         plt.savefig(figure_path, dpi=300, bbox_inches='tight', format="pdf")
     plt.show()
