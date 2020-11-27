@@ -93,7 +93,7 @@ def butterfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass'
             cut = ' ['+cut+']'
         elif isinstance(cutoff_frequencies, int):
             cut = str(cutoff_frequencies)
-            label = 'Buterworth'+' '+filter_type+' '+'filter '+cut+' Hz'
+        label = 'Buterworth'+' '+filter_type+' '+'filter '+cut+' Hz'
         simple_plot(ppg=filtered, title='Filtered Signal', label=label, figure_path=figure_path)
     return filtered
 
@@ -161,7 +161,7 @@ def chebyfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass',
             cut = ' ['+cut+']'
         elif isinstance(cutoff_frequencies, int):
             cut = str(cutoff_frequencies)
-            label = 'Chebyshev II'+' '+filter_type+' '+'filter '+cut+' Hz'
+        label = 'Chebyshev II'+' '+filter_type+' '+'filter '+cut+' Hz'
         simple_plot(ppg=filtered, title='Filtered Signal', label=label, figure_path=figure_path)
     return filtered
 
