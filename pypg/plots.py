@@ -99,9 +99,10 @@ def marks_plot(ppg, marks, title='PPG Signal with Marks', label_ppg='PPG Signal'
             The path for the plot to be saved, by default None.
     """
     _configure_plot(title, y_axis, x_axis)
+
     plt.plot(ppg, color='#e8335e')
     for mark in marks:
-        plt.plot(mark, ppg[mark], marker='X', markersize=8, color='#6233E8')
+        plt.plot(ppg.index[mark], ppg.iloc[mark], marker='X', markersize=8, color='#6233E8')
     plt.legend([label_ppg, label_marks])
     if figure_path:
         plt.savefig(figure_path, dpi=300, bbox_inches='tight', format="pdf")

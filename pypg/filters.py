@@ -74,6 +74,7 @@ def butterfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass'
     """
     if isinstance(ppg, pd.core.series.Series):
         signal_values = ppg.values
+        signal_index = ppg.index
     elif isinstance(ppg, np.ndarray):
         signal_values = ppg
     else:
@@ -86,6 +87,7 @@ def butterfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass'
 
     if isinstance(ppg, pd.core.series.Series):
         filtered = pd.Series(filtered)
+        filtered.index = signal_index
 
     if verbose:
         if isinstance(cutoff_frequencies, list):
@@ -142,6 +144,7 @@ def chebyfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass',
     """
     if isinstance(ppg, pd.core.series.Series):
         signal_values = ppg.values
+        signal_index = ppg.index
     elif isinstance(ppg, np.ndarray):
         signal_values = ppg
     else:
@@ -154,6 +157,7 @@ def chebyfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass',
 
     if isinstance(ppg, pd.core.series.Series):
         filtered = pd.Series(filtered)
+        filtered.index = signal_index
 
     if verbose:
         if isinstance(cutoff_frequencies, list):
@@ -196,6 +200,7 @@ def movefy(ppg, size, verbose=False, figure_path=None):
     """
     if isinstance(ppg, pd.core.series.Series):
         signal_values = ppg.values
+        signal_index = ppg.index
     elif isinstance(ppg, np.ndarray):
         signal_values = ppg
     else:
@@ -206,6 +211,7 @@ def movefy(ppg, size, verbose=False, figure_path=None):
 
     if isinstance(ppg, pd.core.series.Series):
         filtered = pd.Series(filtered)
+        filtered.index = signal_index
 
     if verbose:
         simple_plot(ppg=filtered, title='Filtered Signal',
