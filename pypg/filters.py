@@ -210,8 +210,9 @@ def movefy(ppg, size, verbose=False, figure_path=None):
     filtered = signal.convolve(signal_values, np.ones((size,))/size, mode='valid')
 
     if isinstance(ppg, pd.core.series.Series):
-        filtered = pd.Series(filtered)
+        filtered = pd.DataFrame()
         filtered.index = signal_index
+        filtered = pd.Series(filtered)
 
     if verbose:
         simple_plot(ppg=filtered, title='Filtered Signal',
