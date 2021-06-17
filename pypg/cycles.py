@@ -15,7 +15,7 @@ from scipy import signal
 from .plots import marks_plot
 
 
-def find_onset(ppg, sampling_frequency, factor=0.7, distance=None, height=None,
+def find_onset(ppg, sampling_frequency, factor=0.667, distance=None, height=None,
                       threshold=None, prominence=None, width=None, wlen=None,
                       rel_height=0.5, plateau_size=None, verbose=False):
     """
@@ -29,7 +29,7 @@ def find_onset(ppg, sampling_frequency, factor=0.7, distance=None, height=None,
             The sampling frequency of the signal in Hz.
         factor: float, optional
             Number that is used to calculate the distance in relation to
-            the sampling_frequency, by default 0.7 (or 70%).
+            the sampling_frequency, by default 0.667 (or 66.7%).
         distance : number, optional
             Minimum horizontal distance (>=1) between the cycles start points, by default None.
             However, the function assumes (factor * sampling_frequency) when None is given.
