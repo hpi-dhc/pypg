@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 import pandas as pd
-from pypg.cycles import find_onset
+from pypg.cycles import find_onset, find_with_template
 
 
 class TestFilters(unittest.TestCase):
@@ -38,6 +38,19 @@ class TestFilters(unittest.TestCase):
 
         with self.assertRaises(Exception):
             find_onset(self.int_data, 1000)
+
+    def test_find_with_template(self):
+        """
+        Tests if the returned data type is correct.
+        """
+        result_pandas = find_with_template(self.pandas_data, 1000)
+        result_numpy = find_with_template(self.numpy_data, 1000)
+
+        self.assertIsInstance(result_pandas, np.ndarray)
+        self.assertIsInstance(result_numpy, np.ndarray)
+
+        with self.assertRaises(Exception):
+            find_with_template(self.int_data, 1000)
 
 
 if __name__ == '__main__':
