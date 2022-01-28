@@ -3,6 +3,8 @@
 Plots for PPG Signals (:mod:`pypg.plots`)
 =============================================
 
+This module implements a few plots for PPG signals.
+
 Plots
 ----------
     simple_plot - Plots a PPG signal.
@@ -66,7 +68,7 @@ def simple_plot(ppg, title='PPG Signal', label='PPG Signal', y_axis='Amplitude',
         x_axis : str, optional
             X axis name, by default None.
         figure_path : str, optional
-            The path for the plot to be saved, by default None.
+            The path for the plot to be saved in pdf, by default None.
     """
     _configure_plot(title, y_axis, x_axis)
     plt.plot(ppg, label=label, color='#e8335e')
@@ -98,7 +100,7 @@ def marks_plot(ppg, marks, title='PPG Signal with Marks', label_ppg='PPG Signal'
         x_axis : str, optional
             X axis name, by default None.
         figure_path : str, optional
-            The path for the plot to be saved, by default None.
+            The path for the plot to be saved in pdf, by default None.
     """
     _configure_plot(title, y_axis, x_axis)
 

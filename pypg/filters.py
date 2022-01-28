@@ -3,7 +3,7 @@
 Filters for PPG Signals (:mod:`pypg.filters`)
 =============================================
 
-Most interesting filters found in the literature for
+This module implements the most interesting filters found in the literature for
 PPG signals.
 
 Filters
