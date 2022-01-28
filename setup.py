@@ -11,7 +11,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pypg",
-    version="0.0.3",
+    version="0.0.4",
     author="Ariane Sasso",
     author_email="ariane.sasso@gmail.com",
     description="PyPG: A library for PPG (PhotoPlethysmoGram) processing",
