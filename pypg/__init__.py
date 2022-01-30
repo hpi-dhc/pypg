@@ -15,6 +15,7 @@ Using the modules requires an explicit import. For example:
     ::
 
     cycles
+    features
     filters
     plots
 
@@ -31,5 +32,6 @@ https://github.com/scipy/scipy
 """
 
 import pypg.cycles
+import pypg.features
 import pypg.filters
 import pypg.plots
