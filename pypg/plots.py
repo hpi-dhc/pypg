@@ -7,8 +7,8 @@ This module implements a few plots for PPG signals.
 
 Plots
 ----------
-    simple_plot - Plots a PPG signal.
-    marks_plot  - Plots a PPG signal with marks (e. g. peaks or valleys).
+simple_plot - Plots a PPG signal.
+marks_plot  - Plots a PPG signal with marks (e. g. peaks or valleys).
 
 """
 
@@ -23,12 +23,12 @@ def _configure_plot(title=None, y_axis=None, x_axis=None):
 
     Parameters
     ----------
-        title : str, optional
-            Title of the plot, by default None.
-        y_axis : str, optional
-            Y axis name, by default None.
-        x_axis : str, optional
-            X axis name, by default None.
+    title : str, optional
+        Title of the plot, by default None.
+    y_axis : str, optional
+        Y axis name, by default None.
+    x_axis : str, optional
+        X axis name, by default None.
     """
     # defines the parameters of the figure
     plt.rcParams.update({'font.size': 12})
@@ -57,18 +57,18 @@ def simple_plot(ppg, title='PPG Signal', label='PPG Signal', y_axis='Amplitude',
 
     Parameters
     ----------
-        ppg : pandas.Series or ndarray
-            The PPG signal.
-        title : str, optional
-            Title of the plot, by default 'PPG Signal'.
-        label : str, optional
-            Label of the plotted data, by default 'PPG Signal'.
-        y_axis : str, optional
-            Y axis name, by default 'Amplitude'.
-        x_axis : str, optional
-            X axis name, by default None.
-        figure_path : str, optional
-            The path for the plot to be saved in pdf, by default None.
+    ppg : indexable objects are supported.
+        The PPG signal.
+    title : str, optional
+        Title of the plot, by default 'PPG Signal'.
+    label : str, optional
+        Label of the plotted data, by default 'PPG Signal'.
+    y_axis : str, optional
+        Y axis name, by default 'Amplitude'.
+    x_axis : str, optional
+        X axis name, by default None.
+    figure_path : str, optional
+        The path for the plot to be saved in pdf, by default None.
     """
     _configure_plot(title, y_axis, x_axis)
     plt.plot(ppg, label=label, color='#e8335e')
@@ -85,22 +85,22 @@ def marks_plot(ppg, marks, title='PPG Signal with Marks', label_ppg='PPG Signal'
 
     Parameters
     ----------
-        ppg : pandas.Series or ndarray
-            The PPG signal.
-        marks : ndarray
-            Marks to be plotted agains the PPG signal.
-        title : str, optional
-            Title of the plot, by default 'PPG Signal'.
-        label_ppg : str, optional
-            Label for the PPG signal, by default 'PPG Signal'.
-        label_marks : str, optional
-            Label for the marks, by default 'Marks'.
-        y_axis : str, optional
-            Y axis name, by default 'Amplitude'.
-        x_axis : str, optional
-            X axis name, by default None.
-        figure_path : str, optional
-            The path for the plot to be saved in pdf, by default None.
+    ppg : indexable objects are supported.
+        The PPG signal.
+    marks : ndarray
+        Marks to be plotted against the PPG signal.
+    title : str, optional
+        Title of the plot, by default 'PPG Signal'.
+    label_ppg : str, optional
+        Label for the PPG signal, by default 'PPG Signal'.
+    label_marks : str, optional
+        Label for the marks, by default 'Marks'.
+    y_axis : str, optional
+        Y axis name, by default 'Amplitude'.
+    x_axis : str, optional
+        X axis name, by default None.
+    figure_path : str, optional
+        The path for the plot to be saved in pdf, by default None.
     """
     _configure_plot(title, y_axis, x_axis)
 
