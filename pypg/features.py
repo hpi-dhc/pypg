@@ -65,7 +65,8 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     Returns
     -------
     segment_features : pd.DataFrame
-        A dataframe with the features for each valid cycle in the PPG segment.
+        A dataframe with the time-domain features in seconds for each valid
+        cycle in the PPG segment.
     """
     if isinstance(ppg, np.ndarray):
         ppg = pd.Series(ppg)
@@ -135,7 +136,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     Returns
     -------
     cycle_features : pd.DataFrame
-        A dataframe with the features for the PPG cycle.
+        A dataframe with the time-domain features in seconds for the PPG cycle.
     """
 
     if isinstance(ppg, np.ndarray):

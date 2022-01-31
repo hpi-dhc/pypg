@@ -217,5 +217,5 @@ def movefy(ppg, size, verbose=False, figure_path=None):
 
     if verbose:
         simple_plot(ppg=filtered, title='Filtered Signal',
-                    label='Moving Average filter', figure_path=figure_path)
+                    label='Moving average filter', figure_path=figure_path)
     return filtered
