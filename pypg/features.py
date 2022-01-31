@@ -29,6 +29,7 @@ https://doi.org/10.1088/0967-3334/33/9/1491
 """
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from scipy import signal
 
@@ -43,7 +44,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     Parameters
     ----------
-    ppg : pandas.Series
+    ppg : pandas.Series, ndarray
         The PPG signal.
     sampling_frequency : int
         The sampling frequency of the signal in Hz.
@@ -59,15 +60,16 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     Raises
     ----------
     Exception
-        When PPG values are not a pandas.Series.
+        When PPG values are neither pandas.Series nor ndarray.
 
     Returns
     -------
     segment_features : pd.DataFrame
         A dataframe with the features for each valid cycle in the PPG segment.
     """
-
-    if not isinstance(ppg, pd.core.series.Series):
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     cycles = find_with_template(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
@@ -112,7 +114,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
 
     Parameters
     ----------
-    ppg : pandas.Series
+    ppg : pandas.Series, ndarray
         The PPG signal.
     sampling_frequency : int
         The sampling frequency of the signal in Hz.
@@ -128,7 +130,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     Raises
     ----------
     Exception
-        When PPG values are not a pandas.Series.
+        When PPG values are neither pandas.Series nor ndarray.
 
     Returns
     -------
@@ -136,7 +138,9 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         A dataframe with the features for the PPG cycle.
     """
 
-    if not isinstance(ppg, pd.core.series.Series):
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     if not isinstance(ppg.index, pd.DatetimeIndex):
