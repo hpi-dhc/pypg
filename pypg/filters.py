@@ -48,11 +48,11 @@ def butterfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass'
     sampling_frequency : int
         The sampling frequency of the signal in Hz.
     filter_type : str, optional
-        Filter type (lowpass, highpass, bandpass). Defaults to 'bandpass'.
+        Filter type (lowpass, highpass, bandpass), defaults to 'bandpass'.
     filter_order : int, optional
-        Filter Order. Defaults to 4.
+        Filter order, defaults to 4.
     verbose : bool, optional
-        Plots the signal. Defaults to False.
+        Plots the signal, defaults to False.
     figure_path : str, optional
         The path for the PPG plot to be saved.
 
@@ -115,14 +115,14 @@ def chebyfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass',
     sampling_frequency : int
             The sampling frequency of the signal in Hz.
     filter_type : str, optional
-            Filter type (lowpass, highpass, bandpass). Defaults to 'bandpass'.
+            Filter type (lowpass, highpass, bandpass), defaults to 'bandpass'.
     filter_order : int, optional
-            Filter Order. Defaults to 4.
+            Filter order, defaults to 4.
     band_attenuation : int, optional
             The attenuation required in the stop band.
-            In decibels (dB), as a positive number. Defaults to 20.
+            In decibels (dB), as a positive number, defaults to 20.
     verbose : bool, optional
-            Plots the signal. Defaults to False.
+            Plots the signal, defaults to False.
     figure_path : str, optional
             The path for the PPG plot to be saved.
 
@@ -134,7 +134,7 @@ def chebyfy(ppg, cutoff_frequencies, sampling_frequency, filter_type='bandpass',
     Returns
     ----------
     filtered: pandas.Series or ndarray
-    Filtered PPG signal.
+        Filtered PPG signal.
 
     References
     ----------
@@ -180,7 +180,7 @@ def movefy(ppg, size, verbose=False, figure_path=None):
     size : int
         Size of the np.ones mask to be convoluted.
     verbose : bool, optional
-        Plot the signal. Defaults to False, by default False.
+        Plot the signal, defaults to False, by default False.
     figure_path : [type], optional
         The path for the PPG plot to be saved, by default None.
 
@@ -212,7 +212,7 @@ def movefy(ppg, size, verbose=False, figure_path=None):
     if isinstance(ppg, pd.core.series.Series):
         filtered = pd.Series(filtered)
         padding = pd.Series(np.nan, index=range(len(signal_index) - len(filtered.index)))
-        filtered = filtered.append(padding,ignore_index=True)
+        filtered = pd.concat([filtered, padding], ignore_index=True)
         filtered.index = signal_index
 
     if verbose:
