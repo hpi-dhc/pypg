@@ -53,7 +53,7 @@ def skewness(ppg, sampling_frequency, window=1, mode='avg'):
     Returns
     ----------
     skewness_value: float
-        The skewness value for the PPG segment.
+        The skewness value for the PPG segment. The higher the better.
 
     References
     ----------
