@@ -18,6 +18,7 @@ Using the modules requires an explicit import. For example:
     features
     filters
     plots
+    quality
 
 
 Inspired By
@@ -35,3 +36,4 @@ import pypg.cycles
 import pypg.features
 import pypg.filters
 import pypg.plots
+import pypg.quality
