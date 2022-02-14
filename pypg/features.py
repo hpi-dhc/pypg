@@ -31,7 +31,7 @@ https://doi.org/10.1088/0967-3334/33/9/1491
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy import signal, stats
+from scipy import signal, stats, interpolate
 
 from .cycles import find_with_template
 
@@ -748,6 +748,95 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         plt.show()
     return cycle_features
 
+
+def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq, interval_size, verbose=False):
+    """
+    Extracts frequency features from PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
+    which each line contains the features for a given valid cycle (as described
+    by Li et al.) from the PPG segment given as input.
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    verbose : bool, optional
+        If True, plots the features, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+
+    Returns
+    -------
+    segment_features : pd.DataFrame
+        A dataframe with the frequency features in seconds for each valid
+        cycle in the PPG segment.
+    """
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
+        raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
+
+     # Transform signal from time to frequency domain
+    freq, mag = _transformSigfromTimetoFreq(ppg, sampling_frequency, transformMethod, verbose)
+
+	# features
+    segment_features = pd.DataFrame()
+
+    # Cut off frequencies
+    freq_cut = freq[freq <= cutoff_freq]
+    mag_cut = mag[freq <= cutoff_freq]
+
+    if verbose:
+        plt.semilogy(freq_cut, mag_cut)
+        plt.title('CutOff')
+        plt.xlabel('Frequency')
+        plt.ylabel('mag')
+        plt.show()
+
+    ## -> Paper Wang
+    for start_index in np.arange(0, cutoff_freq, interval_size):
+        end_index = start_index + interval_size
+        segment_features.append({
+            'freqInt' + str(start_index) + '_' + str(end_index): 
+            np.nanmean(mag_cut[(freq_cut >= start_index) & (freq_cut < end_index)])}, 
+            ignore_index=True)
+
+    ## -> Paper Slapnicar
+    sorted_mag = mag_cut[np.argsort(mag_cut)[::-1]]
+    if len(sorted_mag) >= 3:
+        top3_psd = sorted_mag[:3]
+    else:
+        top3_psd = sorted_mag[:len(sorted_mag)]
+
+    for i in np.arange(0, len(top3_psd)):
+        segment_features.append({
+            'mag_top' + str(i+1):
+            top3_psd[i]},
+            ignore_index=True)
+
+    sorted_freq = freq_cut[np.argsort(mag_cut)[::-1]]
+    if len(sorted_freq) >= 3:
+        top3_freq = sorted_freq[:3]
+    else:
+        top3_freq = sorted_freq[:len(sorted_freq)]
+
+    for i in np.arange(0, len(top3_freq)):
+        segment_features.append({
+            'freq_top' + str(i+1):
+            top3_freq[i]},
+            ignore_index=True)
+
+    if verbose:
+        print('Cycle Features within Segment:')
+        print(segment_features)
+
+    return segment_features
+
+
 # takes a dataframe of calculated features and removes the outliers occurring due
 # to inaccuracies in the signal
 def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
@@ -763,3 +852,30 @@ def _find_xs_for_y(y_s, y_val, sys_peak):
     x_1 = diffs[:sys_peak].idxmin()
     x_2 = diffs[sys_peak:].idxmin()
     return x_1, x_2
+
+# transforms a given temporal signal into the spectral domain
+# using different methods and allowing interpolation if required.
+# returns the frequencies and their magnitudes.
+def _transformSigfromTimetoFreq(signal, fs, transformMethod, fft_interpolation=None, verbose=False):
+
+	## TODO: Can maybe be improved?!
+
+	if fft_interpolation:
+		x = np.cumsum(signal)
+		f_interpol = interpolate.interp1d(x, signal, kind = "cubic", fill_value="extrapolate")
+		t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
+		
+		signal = f_interpol(t_interpol)
+		fs = fft_interpolation
+
+	if transformMethod == 'welch':
+		freq, mag = signal.welch(signal, fs, window='hamming', scaling='density', detrend='linear')
+
+	if verbose:
+		plt.semilogy(freq, mag)
+		plt.title('Spectral Analysis using Welch Method')
+		plt.xlabel('Frequency')
+		plt.ylabel('PSD')
+		plt.show()
+
+	return freq, mag
