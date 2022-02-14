@@ -181,6 +181,135 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         plt.show()
     return cycle_features
 
+
+def nonlinear(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
+    """
+    Extracts non-linear features from PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
+    which each line contains the features for a given valid cycle (as described
+    by Li et al.) from the PPG segment given as input.
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    factor: float, optional
+        Number that is used to calculate the distance in relation to the
+        sampling_frequency, by default 0.667 (or 66.7%). The factor is based
+        on the paper by Elgendi et al. (2013).
+    unit : str, optional
+        The unit of the index, by default 'ms'.
+    verbose : bool, optional
+        If True, plots the features with and without outliers, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+
+    Returns
+    -------
+    segment_features : pd.DataFrame
+        A dataframe with the non-linear features in seconds for each valid
+        cycle in the PPG segment.
+    """
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
+        raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
+
+    cycles = find_with_template(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
+    # all signal peaks
+    all_peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if verbose:
+        print('All Peaks: ', all_peaks)
+    if len(cycles) == 0:
+        return pd.DataFrame()
+
+    cur_index = 0
+    segment_features = pd.DataFrame()
+    for i, cycle in enumerate(cycles):
+        segment_features = segment_features.append(nonlinear_cycle(cycle,
+                                         sampling_frequency, factor, unit, verbose=verbose),
+                                         ignore_index=True)
+
+    if verbose:
+        print('Cycle Features within Segment:')
+        print(segment_features)
+
+    # remove outliers
+    segment_features = _clean_segment_features_of_outliers(segment_features)
+
+    if verbose:
+        print('Cycle Features within Segment and no Outliers:')
+    return segment_features
+
+
+def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
+    """
+    Extracts nonlinear features for a PPG cycle. Returns a pandas.Series.
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    factor: float, optional
+        Number that is used to calculate the distance in relation to the
+        sampling_frequency, by default 0.667 (or 66.7%). The factor is based
+        on the paper by Elgendi et al. (2013).
+    unit : str, optional
+        The unit of the index, by default 'ms'.
+    verbose : bool, optional
+        If True, plots the features with and without outliers, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+
+    Returns
+    -------
+    cycle_features : pd.DataFrame
+        A dataframe with the nonlinear features in seconds for the PPG cycle.
+    """
+
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
+        raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
+
+    if not isinstance(ppg.index, pd.DatetimeIndex):
+        ppg.index = pd.to_datetime(ppg.index, unit=unit)
+
+    ppg = ppg.interpolate(method='time')
+    ppg = ppg - ppg.min()
+    ppg_cycle_duration = len(ppg)
+
+    peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    systolic_peak_index = peaks[0]
+
+    if verbose:
+        plt.figure()
+        plt.xlim((ppg.index.min(), ppg.index.max()))
+        plt.scatter(ppg.index[peaks], ppg[peaks])
+        plt.plot(ppg.index, ppg.values)
+
+    # features
+    cycle_features = pd.DataFrame({
+                        'ratio_WL_cycle_mean': (ppg_cycle_duration / np.mean(ppg)),
+                        'ratio_SUT_WL_DT': ((systolic_peak_index / ppg_cycle_duration) / (ppg_cycle_duration - systolic_peak_index)),
+                        'ratio_SUT_DT': (systolic_peak_index / (ppg_cycle_duration - systolic_peak_index)),
+                        'ratio_cycle_mean_cycle_var': (np.mean(ppg) / np.var(ppg))
+                        }, index=[0])
+
+    if verbose:
+        plt.show()
+    return cycle_features
+
+
 # takes a dataframe of calculated features and removes the outliers occurring due
 # to inaccuracies in the signal
 def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
