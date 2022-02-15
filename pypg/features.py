@@ -28,9 +28,11 @@ Physiological Measurement, 33(9), 1491–1501.
 https://doi.org/10.1088/0967-3334/33/9/1491
 """
 
+from operator import index
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import nolds
 from scipy import signal, stats, interpolate
 
 from .cycles import find_with_template
@@ -837,6 +839,87 @@ def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq, interval_si
     return segment_features
 
 
+def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
+    """
+    Extracts hrv features from PPG cycles in a give PPG segment. 
+    Returns a pandas.DataFrame in which each line contains the features 
+    for a given valid cycle (as described by Li et al.) from the PPG segment given as input.
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    factor: float, optional
+        Number that is used to calculate the distance in relation to the
+        sampling_frequency, by default 0.667 (or 66.7%). The factor is based
+        on the paper by Elgendi et al. (2013).
+    unit : str, optional
+        The unit of the index, by default 'ms'.
+    verbose : bool, optional
+        If True, plots the features with and without outliers, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+
+    Returns
+    -------
+    segment_features : pd.DataFrame
+        A dataframe with the hrv-domain features in seconds for each valid
+        cycle in the PPG segment.
+    """
+    if isinstance(ppg, np.ndarray):
+        ppg = pd.Series(ppg)
+    elif not isinstance(ppg, pd.core.series.Series):
+        raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
+
+    cycles = find_with_template(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
+    # all signal peaks
+    all_peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if verbose:
+        print('All Peaks: ', all_peaks)
+    if len(cycles) == 0:
+        return pd.DataFrame()
+
+    segment_features = pd.DataFrame()
+
+    cur_index = 0
+    CP = pd.DataFrame()
+    for i, cycle in enumerate(cycles):
+        CP = CP.append(time_cycle(cycle, sampling_frequency,
+                                    factor, unit, verbose=verbose),
+                                    ignore_index=True)
+        if i > 0:
+            CP.loc[cur_index-1, 'CP'] = (
+                CP.loc[cur_index, 'sys_peak_ts'] - CP.loc[cur_index-1,
+                'sys_peak_ts']).total_seconds()
+        cur_index = cur_index + 1
+    # last cycle or only cycle need to relies on the difference between the general peaks
+    all_peaks_index = len(all_peaks)-1
+    CP.loc[cur_index-1, 'CP'] = (
+        all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
+    
+    temporalHRVFeatures = _getTemporalHRVFeatures(CP['CP'])
+    frequencyHRVFeatures = _getFreqencyHRVFeatures(CP['CP'], sampling_frequency)
+
+    segment_features.append(temporalHRVFeatures)
+    segment_features.append(frequencyHRVFeatures)
+ 
+    if verbose:
+        print('Cycle Features within Segment:')
+        print(segment_features)
+
+    # remove outliers
+    segment_features = _clean_segment_features_of_outliers(segment_features)
+
+    if verbose:
+        print('Cycle Features within Segment and no Outliers:')
+    return segment_features
+
+
 # takes a dataframe of calculated features and removes the outliers occurring due
 # to inaccuracies in the signal
 def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
@@ -858,24 +941,188 @@ def _find_xs_for_y(y_s, y_val, sys_peak):
 # returns the frequencies and their magnitudes.
 def _transformSigfromTimetoFreq(signal, fs, transformMethod, fft_interpolation=None, verbose=False):
 
-	## TODO: Can maybe be improved?!
+    ## TODO: Can maybe be improved?!
+    if fft_interpolation:
+        x = np.cumsum(signal)
+        f_interpol = interpolate.interp1d(x, signal, kind = "cubic", fill_value="extrapolate")
+        t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
+        
+        signal = f_interpol(t_interpol)
+        fs = fft_interpolation
+    
+    if transformMethod == 'welch':
+        freq, mag = signal.welch(signal, fs, window='hamming', scaling='density', detrend='linear')
+    
+    if verbose:
+        plt.semilogy(freq, mag)
+        plt.title('Spectral Analysis using Welch Method')
+        plt.xlabel('Frequency')
+        plt.ylabel('PSD')
+        plt.show()
+    
+    return freq, mag
 
-	if fft_interpolation:
-		x = np.cumsum(signal)
-		f_interpol = interpolate.interp1d(x, signal, kind = "cubic", fill_value="extrapolate")
-		t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
-		
-		signal = f_interpol(t_interpol)
-		fs = fft_interpolation
 
-	if transformMethod == 'welch':
-		freq, mag = signal.welch(signal, fs, window='hamming', scaling='density', detrend='linear')
+def _getTemporalHRVFeatures(signal):
+    
+    if isinstance(signal, np.ndarray):
+        ibi_series = pd.Series(signal)
+    elif not isinstance(signal, pd.core.series.Series):
+        raise Exception('Signal values not accepted, enter a pandas.Series or ndarray.')
+    
+    window = 5
+    nn_threshold = 50
+    
+    # Prepare data
+    instantaneous_hr = 60 / (ibi_series)
+    rolling_mean_hr = instantaneous_hr.rolling(window).mean()
+    rolling_24h = ibi_series.rolling(5)
+    
+    # Precalculate data for standard indexes
+    nn_diff = np.diff(ibi_series)
+    nn_xx = np.sum(np.abs(nn_diff) > nn_threshold)
+    
+    # Precalculate data for geometrical indeces
+    bin_size = 7.8125
+    hist_middle = (ibi_series.min() + ibi_series.max()) / 2
+    hist_bound_lower = hist_middle - bin_size * np.ceil((hist_middle - ibi_series.min()) / bin_size)
+    hist_length = int(np.ceil((ibi_series.max() - hist_bound_lower) / bin_size) + 1)
+    hist_bins = hist_bound_lower + np.arange(hist_length) * bin_size
+    hist, _ = np.histogram(ibi_series, hist_bins)
+    hist_height = np.max(hist)
+    
+    # Calculate TINN measure
+    hist_max_index = np.argmax(hist)
+    min_n = 0
+    min_m = len(hist) - 1
+    min_error = np.finfo(np.float64).max
+    # Ignore bins that do not contain any intervals
+    nonzero_indices = np.nonzero(hist)
+    for n in range(hist_max_index):
+        for m in reversed(range(hist_max_index + 1, len(hist))):
+            # Create triangular interpolation function for n and m
+            tri_interp = interpolate.interp1d(
+                [n, hist_max_index, m],
+                [0, hist[hist_max_index], 0],
+                bounds_error=False,
+                fill_value=0
+            )
+            # Square difference of histogram and triangle
+            error = np.trapz(
+                [(hist[t] - tri_interp(t)) ** 2 for t in nonzero_indices],
+                [hist_bins[t] for t in nonzero_indices]
+            )
+            if min_error > error:
+                min_n = n
+                min_m = m
+                min_error = error
+    n = hist_bins[min_n]
+    m = hist_bins[min_m]
+	
+	# Non-Linear Parameters
+    tolerance = ibi_series.std() * 0.2
+	
+    # features
+    temporalHRVFeatures = pd.DataFrame({
+                            'SampEn': float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance)),
+                            'MeanNN': ibi_series.mean(),
+                            'MeanHR': instantaneous_hr.mean(),
+                            'MaxHR': rolling_mean_hr.max(),
+                            'MinHR': rolling_mean_hr.min(),
+                            'STDHR': instantaneous_hr.std(),
+                            'SDNN': np.std(ibi_series),
+                            'SDNNindex': rolling_24h.std().mean(),
+                            'SDANN': rolling_24h.mean().std(),
+                            'RMSSD': np.sqrt(np.mean(nn_diff ** 2)),
+                            f'NN{nn_threshold}': nn_xx,
+                            f'pNN{nn_threshold}': nn_xx / len(ibi_series) * 100,
+                            'HRVTriangularIndex': len(ibi_series) / hist_height,
+                            'TINN': m - n}, 
+                            index=[0])
+    
+    return temporalHRVFeatures
 
-	if verbose:
-		plt.semilogy(freq, mag)
-		plt.title('Spectral Analysis using Welch Method')
-		plt.xlabel('Frequency')
-		plt.ylabel('PSD')
-		plt.show()
 
-	return freq, mag
+def _getFreqencyHRVFeatures(signal, sampling_frequency):
+    
+    if isinstance(signal, np.ndarray):
+        ibi_series = pd.Series(signal)
+    elif not isinstance(signal, pd.core.series.Series):
+        raise Exception('Signal values not accepted, enter a pandas.Series or ndarray.')
+	
+	## TODO: HYPERPARAMETERS to config dict
+    fft_interpolation = 4.0
+    use_ulf = False
+    lomb_smoothing = 0.02
+    
+    vlf_limit = 0.04
+    lf_limit = 0.15
+    hf_limit = 0.4
+    
+    if not use_ulf or ibi_series.sum() < 300000: #TODO: check
+		# Do not use ULF band on sample shorter than 5 minutes
+        ulf_limit = 0
+    else:
+        ulf_limit = ulf_limit #TODO: ??????
+	
+	# TODO: export transformMethod
+    transformMethod='welch'
+    freq, mag = _transformSigfromTimetoFreq(ibi_series, sampling_frequency, transformMethod, fft_interpolation)
+    
+    abs_index = freq <= hf_limit
+    ulf_index = freq <= ulf_limit
+    vlf_index = (freq >= ulf_limit) & (freq <= vlf_limit)
+    lf_index = (freq >= vlf_limit) & (freq <= lf_limit)
+    hf_index = (freq >= lf_limit) & (freq <= hf_limit)
+	
+	# Get power for each band by integrating over spectral density
+    abs_power = np.trapz(mag[abs_index], freq[abs_index])
+    ulf = np.trapz(mag[ulf_index], freq[ulf_index])
+    vlf = np.trapz(mag[vlf_index], freq[vlf_index])
+    lf = np.trapz(mag[lf_index], freq[lf_index])
+    hf = np.trapz(mag[hf_index], freq[hf_index])
+	
+	# Normalized power for LF and HF band
+    lf_nu = lf / (abs_power - vlf - ulf) * 100
+    hf_nu = hf / (abs_power - vlf - ulf) * 100
+	
+	# Relative power of each band
+    ulf_perc = (ulf / abs_power) * 100
+    vlf_perc = (vlf / abs_power) * 100
+    lf_perc = (lf / abs_power) * 100
+    hf_perc = (hf / abs_power) * 100
+	
+	# Frequency with highest power
+    vlf_peak = freq[vlf_index][np.argmax(mag[vlf_index])]
+    lf_peak = freq[lf_index][np.argmax(mag[lf_index])]
+    hf_peak = freq[hf_index][np.argmax(mag[hf_index])]
+    
+    freqencyHRVFeatures = pd.DataFrame({
+                            'VLF_peak': vlf_peak,
+                            'VLF_power': vlf,
+                            'VLF_power_log': np.log(vlf),
+                            'VLF_power_rel': vlf_perc,
+                            'LF_peak': lf_peak,
+                            'LF_power': lf,
+                            'LF_power_log': np.log(lf),
+                            'LF_power_rel': lf_perc,
+                            'LF_power_norm': lf_nu,
+                            'HF_peak': hf_peak,
+                            'HF_power': hf,
+                            'HF_power_log': np.log(hf),
+                            'HF_power_rel': hf_perc,
+                            'HF_power_norm': hf_nu,
+                            'ratio_LF_HF': lf/hf}, 
+                            index=[0])
+    
+    # Add ULF parameters, if band available
+    if use_ulf and np.sum(ulf_index) > 0:
+        ulf_peak = freq[np.argmax(mag[ulf_index])]
+        freqencyHRVFeatures.append({
+                                'ULF_peak': ulf_peak,
+                                'ULF_power': ulf,
+                                'ULF_power_log': np.log(ulf),
+                                'ULF_power_rel': ulf_perc}, 
+                                index=[0])
+    
+    return freqencyHRVFeatures
