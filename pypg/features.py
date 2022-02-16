@@ -902,8 +902,8 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     CP.loc[cur_index-1, 'CP'] = (
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
-    temporalHRVFeatures = _getTemporalHRVFeatures(CP['CP'])
-    frequencyHRVFeatures = _getFreqencyHRVFeatures(CP['CP'], sampling_frequency)
+    temporalHRVFeatures = temporal_hrv(CP['CP'])
+    frequencyHRVFeatures = frequency_hrv(CP['CP'], sampling_frequency)
 
     segment_features.append(temporalHRVFeatures)
     segment_features.append(frequencyHRVFeatures)
@@ -920,50 +920,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     return segment_features
 
 
-# takes a dataframe of calculated features and removes the outliers occurring due
-# to inaccuracies in the signal
-def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
-    quant = segment_df.quantile(treshold)
-    for col in segment_df.columns:
-        if col.find('ts') == -1:
-            segment_df = segment_df[segment_df[col] < quant[col]*2]
-    return segment_df
-
-# returns the x values for those samples in the signal, that are closest to some given y value
-def _find_xs_for_y(y_s, y_val, sys_peak):
-    diffs = abs(y_s - y_val)
-    x_1 = diffs[:sys_peak].idxmin()
-    x_2 = diffs[sys_peak:].idxmin()
-    return x_1, x_2
-
-# transforms a given temporal signal into the spectral domain
-# using different methods and allowing interpolation if required.
-# returns the frequencies and their magnitudes.
-def _transformSigfromTimetoFreq(signal, fs, transformMethod, fft_interpolation=None, verbose=False):
-
-    ## TODO: Can maybe be improved?!
-    if fft_interpolation:
-        x = np.cumsum(signal)
-        f_interpol = interpolate.interp1d(x, signal, kind = "cubic", fill_value="extrapolate")
-        t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
-        
-        signal = f_interpol(t_interpol)
-        fs = fft_interpolation
-    
-    if transformMethod == 'welch':
-        freq, mag = signal.welch(signal, fs, window='hamming', scaling='density', detrend='linear')
-    
-    if verbose:
-        plt.semilogy(freq, mag)
-        plt.title('Spectral Analysis using Welch Method')
-        plt.xlabel('Frequency')
-        plt.ylabel('PSD')
-        plt.show()
-    
-    return freq, mag
-
-
-def _getTemporalHRVFeatures(signal):
+def temporal_hrv(signal):
     
     if isinstance(signal, np.ndarray):
         ibi_series = pd.Series(signal)
@@ -1043,7 +1000,7 @@ def _getTemporalHRVFeatures(signal):
     return temporalHRVFeatures
 
 
-def _getFreqencyHRVFeatures(signal, sampling_frequency):
+def frequency_hrv(signal, sampling_frequency):
     
     if isinstance(signal, np.ndarray):
         ibi_series = pd.Series(signal)
@@ -1126,3 +1083,46 @@ def _getFreqencyHRVFeatures(signal, sampling_frequency):
                                 index=[0])
     
     return freqencyHRVFeatures
+
+
+# takes a dataframe of calculated features and removes the outliers occurring due
+# to inaccuracies in the signal
+def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
+    quant = segment_df.quantile(treshold)
+    for col in segment_df.columns:
+        if col.find('ts') == -1:
+            segment_df = segment_df[segment_df[col] < quant[col]*2]
+    return segment_df
+
+# returns the x values for those samples in the signal, that are closest to some given y value
+def _find_xs_for_y(y_s, y_val, sys_peak):
+    diffs = abs(y_s - y_val)
+    x_1 = diffs[:sys_peak].idxmin()
+    x_2 = diffs[sys_peak:].idxmin()
+    return x_1, x_2
+
+# transforms a given temporal signal into the spectral domain
+# using different methods and allowing interpolation if required.
+# returns the frequencies and their magnitudes.
+def _transformSigfromTimetoFreq(signal, fs, transformMethod, fft_interpolation=None, verbose=False):
+
+    ## TODO: Can maybe be improved?!
+    if fft_interpolation:
+        x = np.cumsum(signal)
+        f_interpol = interpolate.interp1d(x, signal, kind = "cubic", fill_value="extrapolate")
+        t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
+        
+        signal = f_interpol(t_interpol)
+        fs = fft_interpolation
+    
+    if transformMethod == 'welch':
+        freq, mag = signal.welch(signal, fs, window='hamming', scaling='density', detrend='linear')
+    
+    if verbose:
+        plt.semilogy(freq, mag)
+        plt.title('Spectral Analysis using Welch Method')
+        plt.xlabel('Frequency')
+        plt.ylabel('PSD')
+        plt.show()
+    
+    return freq, mag
