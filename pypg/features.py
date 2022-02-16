@@ -84,8 +84,8 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
-        segment_features = segment_features.append(time_cycle(cycle,
-                                         sampling_frequency, factor, unit, verbose=verbose),
+        segment_features = pd.concat([segment_features, time_cycle(cycle,
+                                         sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
         if i > 0:
             segment_features.loc[cur_index-1, 'CP'] = (
