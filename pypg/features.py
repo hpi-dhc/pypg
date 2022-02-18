@@ -73,7 +73,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
-    cycles = find_with_template(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
+    cycles = find_with_template(ppg, sampling_frequency, factor=factor, verbose=verbose)
     # all signal peaks
     all_peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
     if verbose:
@@ -106,6 +106,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
+        print(segment_features)
     return segment_features
 
 def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
