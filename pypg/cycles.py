@@ -147,7 +147,7 @@ def find_with_template(ppg, sampling_frequency, return_type='original', factor=0
         The PPG signal.
     sampling_frequency : int
         The sampling frequency of the signal in Hz.
-    return_type: strm, optional
+    return_type: str, optional
         The type of values to be returned (original or index), by default
         "original". Original returns a list of pd.Series or np.ndarray with the
         original data partioned into cycles. Index returns a list of tuples with
