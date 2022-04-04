@@ -7,8 +7,10 @@ This module is intended to extract features from PPG segments and cycles.
 
 Features
 ----------
-time       - Extract features from the time domain for a PPG segment.
-time_cycle - Extract features from the time domain for a PPG cycle.
+time            - Extract features from the time domain for a PPG segment.
+time_cycle      - Extract features from the time domain for a PPG cycle.
+nonlinear       - Extract features from the time domain and compute non-linear relations for a PPG segment.
+nonlinear_cycle - Extract features from the time domain and compute non-linear relations for a PPG cycle.
 
 References
 ----------
@@ -220,7 +222,7 @@ def nonlinear(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     Returns
     -------
     segment_features : pd.DataFrame
-        A dataframe with the non-linear features in seconds for each valid
+        A dataframe with the non-linear features for each valid
         cycle in the PPG segment.
     """
     if isinstance(ppg, np.ndarray):
@@ -252,8 +254,9 @@ def nonlinear(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
-    return segment_features
+        print(segment_features)
 
+    return segment_features
 
 def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
@@ -291,14 +294,14 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit)
+        ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min()
-    ppg_cycle_duration = len(ppg)
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???
+    ppg_cycle_duration = (ppg.index.max() - ppg.index.min()).total_seconds()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
-    systolic_peak_index = peaks[0]
+    sys_peak_ts = ppg.index[peaks[0]] # ??? ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks) ???
 
     if verbose:
         plt.figure()
@@ -308,14 +311,15 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
 
     # features
     cycle_features = pd.DataFrame({
-                        'ratio_WL_cycle_mean': (ppg_cycle_duration / np.mean(ppg)),
-                        'ratio_SUT_WL_DT': ((systolic_peak_index / ppg_cycle_duration) / (ppg_cycle_duration - systolic_peak_index)),
-                        'ratio_SUT_DT': (systolic_peak_index / (ppg_cycle_duration - systolic_peak_index)),
-                        'ratio_cycle_mean_cycle_var': (np.mean(ppg) / np.var(ppg))
+                        'ratio_WL_cycle_mean': (ppg_cycle_duration / np.mean(ppg.values)), # ??  WHERE DO DEFINITIONS COME FROM ??
+                        'ratio_SUT_WL_DT': ((sys_peak_ts / ppg_cycle_duration) / (ppg_cycle_duration - sys_peak_ts)),
+                        'ratio_SUT_DT': (sys_peak_ts / (ppg_cycle_duration - sys_peak_ts)),
+                        'ratio_cycle_mean_cycle_var': (np.mean(ppg.values) / np.var(ppg.values))
                         }, index=[0])
 
     if verbose:
         plt.show()
+
     return cycle_features
 
 
