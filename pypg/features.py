@@ -7,10 +7,14 @@ This module is intended to extract features from PPG segments and cycles.
 
 Features
 ----------
-time            - Extract features from the time domain for a PPG segment.
-time_cycle      - Extract features from the time domain for a PPG cycle.
-nonlinear       - Extract features from the time domain and compute non-linear relations for a PPG segment.
-nonlinear_cycle - Extract features from the time domain and compute non-linear relations for a PPG cycle.
+time             - Extract features from the time domain for a PPG segment.
+time_cycle       - Extract features from the time domain for a PPG cycle.
+nonlinear        - Extract features from the time domain computing non-linear relations for a PPG segment.
+nonlinear_cycle  - Extract features from the time domain computing non-linear relations for a PPG cycle.
+statistical      - Extract features from the time domain computing statistical values for a PPG segment.
+statistical_cyle - Extract features from the time domain computing statistical values for a PPG cycle.
+sdppg            - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG segment.
+sdppg_cycle      - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG cycle.
 
 References
 ----------
@@ -155,7 +159,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???  if we do it for each cycle individually features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
     max_amplitude = ppg.max()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
@@ -285,7 +289,7 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
     Returns
     -------
     cycle_features : pd.DataFrame
-        A dataframe with the nonlinear features in seconds for the PPG cycle.
+        A dataframe with the nonlinear features for the PPG cycle.
     """
 
     if isinstance(ppg, np.ndarray):
@@ -297,7 +301,7 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
         ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???  if we do it for each cycle individually features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
     ppg_cycle_duration = (ppg.index.max() - ppg.index.min()).total_seconds()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
@@ -352,7 +356,7 @@ def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False
     Returns
     -------
     segment_features : pd.DataFrame
-        A dataframe with the statistical features in seconds for each valid
+        A dataframe with the statistical features for each valid
         cycle in the PPG segment.
     """
     if isinstance(ppg, np.ndarray):
@@ -384,8 +388,9 @@ def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
-    return segment_features
+        print(segment_features)
 
+    return segment_features
 
 def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
@@ -414,7 +419,7 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
     Returns
     -------
     cycle_features : pd.DataFrame
-        A dataframe with the statistical features in seconds for the PPG cycle.
+        A dataframe with the statistical features for the PPG cycle.
     """
 
     if isinstance(ppg, np.ndarray):
@@ -423,10 +428,10 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit)
+        ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min()
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???  if we do it for each cycle individually features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
 
@@ -438,20 +443,21 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
 
     # features
     cycle_features = pd.DataFrame({
-                        'ppg_mean': (np.mean(ppg)),
-                        'ppg_var': (np.var(ppg)),
-                        'ppg_skewness': (stats.skew(ppg)),
-                        'ppg_kurtosis': (stats.kurtosis(ppg))
+                        'ppg_mean': (np.mean(ppg.values)),
+                        'ppg_var': (np.var(ppg.values)),
+                        'ppg_skewness': (stats.skew(ppg.values)),
+                        'ppg_kurtosis': (stats.kurtosis(ppg.values))
                         }, index=[0])
 
     if verbose:
         plt.show()
+
     return cycle_features
 
 
 def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
-    Extracts features from the second derivative (APG) of the PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
+    Extracts features from the second derivative (SDPPG or APG) of the PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
     which each line contains the features for a given valid cycle (as described
     by Li et al.) from the PPG segment given as input.
 
@@ -478,7 +484,7 @@ def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     Returns
     -------
     segment_features : pd.DataFrame
-        A dataframe with the features from the second derivative (APG) of the PPG cycles in seconds for each valid
+        A dataframe with the features from the second derivative (SDPPG or APG) of the PPG cycles in seconds for each valid
         cycle in the PPG segment.
     """
     if isinstance(ppg, np.ndarray):
@@ -510,12 +516,13 @@ def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
-    return segment_features
+        print(segment_features)
 
+    return segment_features
 
 def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
-    Extracts features from the second derivative (APG) for the PPG cycles. Returns a pandas.Series.
+    Extracts features from the second derivative (SDPPG or APG) for the PPG cycles. Returns a pandas.Series.
 
     Parameters
     ----------
@@ -540,7 +547,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     Returns
     -------
     cycle_features : pd.DataFrame
-        A dataframe with the features from the second derivative (APG) in seconds for the PPG cycle.
+        A dataframe with the features from the second derivative (SDPPG or APG) in seconds for the PPG cycle.
     """
 
     if isinstance(ppg, np.ndarray):
@@ -549,13 +556,13 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit)
+        ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min()
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???  if we do it for each cycle individually features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
-    systolic_peak_index = peaks[0]
+    sys_peak_ts = ppg.index[peaks[0]] # ??? ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks) ???
 
     if verbose:
         plt.figure()
@@ -564,9 +571,9 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         plt.plot(ppg.index, ppg.values)
 
     # second derviative of the PPG signal
-    sdppg_signal = np.gradient(np.gradient(ppg))
+    sdppg_signal = np.gradient(np.gradient(ppg.values))
 
-    # features
+    # features !!! WRITE DOWN REFERENCE NICELY IN TOP DESCRIPTION !!!
     # https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0076585
     # https://www.researchgate.net/figure/Important-points-on-PPG-VPG-and-AVG-The-first-top-signal-is-an-epoch-of-PPG-The_fig4_339604879
     # a is global maximum;
@@ -588,7 +595,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         
         a_index = (sdppg_signal_peaks[np.argmax(peak_dict['peak_heights'])])
         
-        ## subset signal + dictionary to only have left over indeces + magnitudes
+        ## subset signal + dictionary to exclude a index + magnitude
         old_len = len(sdppg_signal_peaks)
         sdppg_signal_peaks = sdppg_signal_peaks[sdppg_signal_peaks > a_index[0]]
         peak_dict['peak_heights'] = peak_dict['peak_heights'][old_len - len(sdppg_signal_peaks):]
@@ -602,7 +609,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         
         b_index = (sdppg_signal_valleys[np.argmax(valley_dict['peak_heights'])])
         
-        ## subset signal + dictionary to only have left over indeces + magnitudes
+        ## subset signal + dictionary to exclude b index + magnitude
         old_len = len(sdppg_signal_peaks)
         sdppg_signal_peaks = sdppg_signal_peaks[sdppg_signal_peaks > b_index[0]]
         peak_dict['peak_heights'] = peak_dict['peak_heights'][old_len - len(sdppg_signal_peaks):]
@@ -624,7 +631,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
                 e_index = (sdppg_signal_peaks[peaks[0]])
                 c_index = (sdppg_signal_peaks[peaks[1]])
             
-            ## subset signal + dictionary to only have left over indeces + magnitudes
+            ## subset signal + dictionary to exlcude c and e indeces + magnitudes
             old_len = len(sdppg_signal_valleys)
             sdppg_signal_valleys = sdppg_signal_valleys[sdppg_signal_valleys > c_index[0]]
             valley_dict['peak_heights'] = valley_dict['peak_heights'][old_len - len(sdppg_signal_valleys):]
@@ -684,8 +691,8 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         AE = (d_index / sampling_frequency)
     
     ### Difference of peak and dicrotic notch with respect to time (CD)
-    if c_index and systolic_peak_index is not None:
-        CD = ((c_index - systolic_peak_index) / sampling_frequency)
+    if c_index and sys_peak_ts is not None:
+        CD = ((c_index - sys_peak_ts) / sampling_frequency)
     
     ### Difference of dicrotic notch and end of signal with respect to time (DF)
     if c_index:
@@ -695,11 +702,11 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     ## PPG Signal values
     ### Dicrotic notch (D')
     if c_index:
-        D = (ppg[c_index])
+        D = (ppg.values[c_index])
     
     ### Diastolic point (E')
-        if d_index:
-            E = (ppg[d_index])
+    if d_index:
+        E = (ppg.values[d_index])
     
     
     ## Ratios
@@ -724,8 +731,8 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         ratio_AD_AF = (c_index / len(sdppg_signal))
     
     ### Difference of location of peak and dicrotic notch with respect to the length of window (CD/AF)
-    if c_index and systolic_peak_index is not None:
-        ratio_CD_AF = ((c_index - systolic_peak_index) / len(sdppg_signal))
+    if c_index and sys_peak_ts is not None:
+        ratio_CD_AF = ((c_index - sys_peak_ts) / len(sdppg_signal))
     
     ### Location of diastolic point on PPG signal with respect to the length of window (AE/AF)
     if d_index:
@@ -759,6 +766,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
 
     if verbose:
         plt.show()
+
     return cycle_features
 
 
