@@ -16,6 +16,7 @@ statistical_cyle - Extract features from the time domain computing statistical v
 sdppg            - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG segment.
 sdppg_cycle      - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG cycle.
 frequency        - Extract features from the frequency domain for a PPG segment.
+hrv              - Extract features from the computed Heart-Rate-Variability signal for a PPG segment.
 
 References
 ----------
@@ -874,9 +875,9 @@ def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq=12.5, interv
 
 def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
-    Extracts hrv features from PPG cycles in a give PPG segment. 
+    Extracts hrv features from a given PPG segment. 
     Returns a pandas.DataFrame in which each line contains the features 
-    for a given valid cycle (as described by Li et al.) from the PPG segment given as input.
+    from the PPG segment given as input.
 
     Parameters
     ----------
@@ -901,8 +902,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     Returns
     -------
     segment_features : pd.DataFrame
-        A dataframe with the hrv-domain features in seconds for each valid
-        cycle in the PPG segment.
+        A dataframe with the hrv-domain features in seconds for the PPG segment.
     """
     if isinstance(ppg, np.ndarray):
         ppg = pd.Series(ppg)
@@ -917,8 +917,6 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     if len(cycles) == 0:
         return pd.DataFrame()
 
-    segment_features = pd.DataFrame()
-
     cur_index = 0
     CP = pd.DataFrame()
     for i, cycle in enumerate(cycles):
@@ -927,19 +925,17 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
                                     ignore_index=True)
         if i > 0:
             CP.loc[cur_index-1, 'CP'] = (
-                CP.loc[cur_index, 'sys_peak_ts'] - CP.loc[cur_index-1,
-                'sys_peak_ts']).total_seconds()
+                CP.loc[cur_index, 'sys_peak_ts'] - CP.loc[cur_index-1, 'sys_peak_ts']).total_seconds()
         cur_index = cur_index + 1
     # last cycle or only cycle need to relies on the difference between the general peaks
     all_peaks_index = len(all_peaks)-1
     CP.loc[cur_index-1, 'CP'] = (
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
-    temporalHRVFeatures = temporal_hrv(CP['CP'])
-    frequencyHRVFeatures = frequency_hrv(CP['CP'], sampling_frequency)
+    temporalHRVFeatures = _temporal_hrv(CP['CP'])
+    frequencyHRVFeatures = _frequency_hrv(CP['CP'], sampling_frequency)
 
-    segment_features.append(temporalHRVFeatures)
-    segment_features.append(frequencyHRVFeatures)
+    segment_features = pd.concat([temporalHRVFeatures.reset_index(drop=True), frequencyHRVFeatures], axis=1)
  
     if verbose:
         print('Cycle Features within Segment:')
@@ -950,14 +946,17 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
+        print(segment_features)
+
     return segment_features
 
 
-def temporal_hrv(signal):
+# compute temporal and frequency features of HRV
+def _temporal_hrv(ibi_series):
     
-    if isinstance(signal, np.ndarray):
-        ibi_series = pd.Series(signal)
-    elif not isinstance(signal, pd.core.series.Series):
+    if isinstance(ibi_series, np.ndarray):
+        ibi_series = pd.Series(ibi_series)
+    elif not isinstance(ibi_series, pd.core.series.Series):
         raise Exception('Signal values not accepted, enter a pandas.Series or ndarray.')
     
     window = 5
@@ -1032,8 +1031,7 @@ def temporal_hrv(signal):
     
     return temporalHRVFeatures
 
-
-def frequency_hrv(signal, sampling_frequency):
+def _frequency_hrv(signal, sampling_frequency):
     
     if isinstance(signal, np.ndarray):
         ibi_series = pd.Series(signal)
