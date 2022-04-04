@@ -37,6 +37,7 @@ from scipy import signal, stats, interpolate
 
 from .cycles import find_with_template
 
+
 def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
     Extracts time domain features from PPG cycles in a give PPG segment as
@@ -94,6 +95,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
                 segment_features.loc[cur_index, 'sys_peak_ts'] - segment_features.loc[cur_index-1,
                 'sys_peak_ts']).total_seconds()
         cur_index = cur_index + 1
+    
     # last cycle or only cycle need to relies on the difference between the general peaks
     all_peaks_index = len(all_peaks)-1
     segment_features.loc[cur_index-1, 'CP'] = (
@@ -148,14 +150,14 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
     if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit)
+        ppg.index = pd.to_datetime(ppg.index, unit=unit) # ??? Sampling Frequncy considered ???
 
     ppg = ppg.interpolate(method='time')
-    ppg = ppg - ppg.min()
+    ppg = ppg - ppg.min() ## ??? SHOULDNT IT BE MEAN VALUE: ppg - ppg.mean() ???
     max_amplitude = ppg.max()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
-    sys_peak_ts = ppg.index[peaks[0]]
+    sys_peak_ts = ppg.index[peaks[0]] # ??? ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks) ???
 
     if verbose:
         plt.figure()
@@ -168,8 +170,12 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
                         'start_ts': ppg.index.min(),
                         'sys_peak_ts': sys_peak_ts,
                         'SUT': (sys_peak_ts - ppg.index.min()).total_seconds(),
-                        'DT': (ppg.index.max() - sys_peak_ts).total_seconds()
+                        'DT': (ppg.index.max() - sys_peak_ts).total_seconds(),
+                        'BPM': (60 / (ppg.index.max() - ppg.index.min()).total_seconds()), # ??? CHECK KURYLAK DEF ???
+                        'CT': (ppg.index.max() - ppg.index.min()).total_seconds(),
+                        'SUT_VAL': (ppg.values[sys_peak_ts])
                         }, index=[0])
+
     for p_value in [10, 25, 33, 50, 66, 75]:
         p_ampl = p_value / 100 * max_amplitude
         x_1, x_2 = _find_xs_for_y(ppg, p_ampl, peaks[0])
@@ -181,6 +187,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
                                         x_2 - sys_peak_ts) / (sys_peak_ts - x_1)
     if verbose:
         plt.show()
+    
     return cycle_features
 
 
