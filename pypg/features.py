@@ -15,6 +15,7 @@ statistical      - Extract features from the time domain computing statistical v
 statistical_cyle - Extract features from the time domain computing statistical values for a PPG cycle.
 sdppg            - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG segment.
 sdppg_cycle      - Extract features from the time domain's second derivative (SDPPG or APG) for a PPG cycle.
+frequency        - Extract features from the frequency domain for a PPG segment.
 
 References
 ----------
@@ -770,7 +771,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     return cycle_features
 
 
-def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq, interval_size, verbose=False):
+def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq = 12.5, interval_size = 0.5, verbose=False):
     """
     Extracts frequency features from PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
     which each line contains the features for a given valid cycle (as described
@@ -782,6 +783,12 @@ def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq, interval_si
         The PPG signal.
     sampling_frequency : int
         The sampling frequency of the signal in Hz.
+    transformMethod : str
+        The method used for transforming the time signal to the frequency domain.
+    cutoff_freq : int
+        The frequency threshold used to exclude frequencies above threshold from analysis.
+    interval_size : int
+        The size of the interval used to split the frequency spectrum.
     verbose : bool, optional
         If True, plots the features, by default False.
 
@@ -853,6 +860,13 @@ def frequency(ppg, sampling_frequency, transformMethod, cutoff_freq, interval_si
 
     if verbose:
         print('Cycle Features within Segment:')
+        print(segment_features)
+
+    # remove outliers
+    segment_features = _clean_segment_features_of_outliers(segment_features)
+
+    if verbose:
+        print('Cycle Features within Segment and no Outliers:')
         print(segment_features)
 
     return segment_features
