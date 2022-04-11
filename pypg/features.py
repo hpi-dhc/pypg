@@ -1024,7 +1024,7 @@ def _temporal_hrv(ibi_series):
 	
     # features
     temporalHRVFeatures = pd.DataFrame({
-                            'SampEn': float(nolds.sampen(ibi_series, 2, tolerance)), # TODO: @Ari: RETURNS INF AS VALUE, MAYBE SIGNAL SEGMENT TOO SMALL
+                            'SampEn': float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance)), # TODO: @Ari: RETURNS INF AS VALUE, MAYBE SIGNAL SEGMENT TOO SMALL
                             'MeanNN': ibi_series.mean(),
                             'MeanHR': instantaneous_hr.mean(),
                             'MaxHR': rolling_mean_hr.max(),
