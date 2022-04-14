@@ -179,7 +179,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
                         'sys_peak_ts': sys_peak_ts,
                         'SUT': (sys_peak_ts - ppg.index.min()).total_seconds(),
                         'DT': (ppg.index.max() - sys_peak_ts).total_seconds(),
-                        'BPM': (60 / (ppg.index.max() - ppg.index.min()).total_seconds()), # TODO: CHECK DEF! @Ari: even use? makes sense?
+                        #'BPM': (60 / (ppg.index.max() - ppg.index.min()).total_seconds()), # TODO: CHECK DEF! @Ari: even use? makes sense?
                         'CT': (ppg.index.max() - ppg.index.min()).total_seconds(),
                         'SUT_VAL': (ppg.values[peaks[0]])
                         }, index=[0])
@@ -868,7 +868,7 @@ def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=125.
 
     # TODO: @Ari: OTHER CLEANING METRIC FOR HRV > computes only one value per window, therefore quantile doesnt make sense
     # remove outliers
-    segment_features = _clean_segment_features_of_outliers(segment_features)
+    #segment_features = _clean_segment_features_of_outliers(segment_features)
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
@@ -941,6 +941,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     #print(ibi_series)
 
     # TODO: @Ari: if len(time_features['CP']) < 5 don't compute hrv features
+    # PAPER What should be the minimum threshold
 
     temporalHRVFeatures = _temporal_hrv(time_features['CP'])
     frequencyHRVFeatures = _frequency_hrv(time_features['CP'], sampling_frequency)
@@ -953,7 +954,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     # TODO: @Ari: OTHER CLEANING METRIC FOR HRV > computes only one value per window, therefore quantile doesnt make sense
     # remove outliers
-    segment_features = _clean_segment_features_of_outliers(segment_features)
+    #segment_features = _clean_segment_features_of_outliers(segment_features)
 
     if verbose:
         print('Cycle Features within Segment and no Outliers:')
@@ -971,7 +972,7 @@ def _temporal_hrv(ibi_series):
         raise Exception('Signal values not accepted, enter a pandas.Series or ndarray.')
     
     window = 5
-    nn_threshold = 0.05 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx
+    nn_threshold = 0.05 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx /// was 50 before
     
     # Prepare data
     instantaneous_hr = 60 / (ibi_series)
