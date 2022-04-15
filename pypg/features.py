@@ -247,8 +247,8 @@ def nonlinear(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
-        segment_features = segment_features.append(nonlinear_cycle(cycle,
-                                         sampling_frequency, factor, unit, verbose=verbose),
+        segment_features = pd.concat([segment_features, nonlinear_cycle(cycle,
+                                         sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
 
     if verbose:
@@ -378,8 +378,8 @@ def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False
     cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
-        segment_features = segment_features.append(statistical_cycle(cycle,
-                                         sampling_frequency, factor, unit, verbose=verbose),
+        segment_features = pd.concat([segment_features, statistical_cycle(cycle,
+                                         sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
 
     if verbose:
@@ -503,11 +503,10 @@ def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     if len(cycles) == 0:
         return pd.DataFrame()
 
-    cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
-        segment_features = segment_features.append(sdppg_cycle(cycle,
-                                         sampling_frequency, factor, unit, verbose=verbose),
+        segment_features = pd.concat([segment_features, sdppg_cycle(cycle,
+                                         sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
 
     if verbose:
@@ -841,7 +840,10 @@ def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=125.
     ## -> Paper Wang # TODO: Add description to the top
     for start_index in np.arange(0, cutoff_freq, interval_size):
         end_index = start_index + interval_size
-        segment_features.loc[0, 'freqInt' + str(start_index) + '_' + str(end_index)] = np.nanmean(mag_cut[(freq_cut >= start_index) & (freq_cut < end_index)])
+        if mag_cut[(freq_cut >= start_index) & (freq_cut < end_index)].size != 0:
+            segment_features.loc[0, 'freqInt' + str(start_index) + '_' + str(end_index)] = np.nanmean(mag_cut[(freq_cut >= start_index) & (freq_cut < end_index)])
+        else:
+            segment_features.loc[0, 'freqInt' + str(start_index) + '_' + str(end_index)] = 0
 
     ## -> Paper Slapnicar # TODO: Add description to the top
     sorted_mag = mag_cut[np.argsort(mag_cut)[::-1]]
@@ -924,8 +926,8 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     cur_index = 0
     time_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
-        time_features = time_features.append(time_cycle(cycle, sampling_frequency,
-                                    factor, unit, verbose=verbose),
+        time_features = pd.concat([time_features, time_cycle(cycle, sampling_frequency,
+                                    factor, unit, verbose=verbose)],
                                     ignore_index=True)
         if i > 0:
             time_features.loc[cur_index-1, 'CP'] = (
@@ -937,7 +939,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
     ## FOR TESTING WITH PPG-BP DATASET:
-    #ibi_series = time_features['CP'].append(pd.Series([0.77, 0.943, 0.854, 0.644, 0.693, 0.832, 0.999, 0.942]), ignore_index=True)
+    #ibi_series = time_features['CP'].concat(pd.Series([0.77, 0.943, 0.854, 0.644, 0.693, 0.832, 0.999, 0.942]), ignore_index=True)
     #print(ibi_series)
 
     # TODO: @Ari: if len(time_features['CP']) < 5 don't compute hrv features
@@ -1116,7 +1118,7 @@ def _frequency_hrv(ibi_series, sampling_frequency):
     # Add ULF parameters, if band available
     if use_ulf and np.sum(ulf_index) > 0:
         ulf_peak = freq[np.argmax(mag[ulf_index])]
-        freqencyHRVFeatures.append({
+        freqencyHRVFeatures.concat({
                                 'ULF_peak': ulf_peak,
                                 'ULF_power': ulf,
                                 'ULF_power_log': np.log(ulf),
