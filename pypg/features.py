@@ -508,7 +508,7 @@ def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         segment_features = pd.concat([segment_features, sdppg_cycle(cycle,
                                          sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
-
+    
     if verbose:
         print('Cycle Features within Segment:')
         print(segment_features)
@@ -754,25 +754,25 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         ratio_DF_AF = ((len(sdppg_signal) - c_index) / len(sdppg_signal))
 
     cycle_features = pd.DataFrame({
-                        'a_val': a_val, # TODO: @Ari: What to put if NaN, i.e. not able to detect in cycle due to bad quality
-                        'b_val': b_val,
-                        'c_val': c_val,
-                        'd_val': d_val,
-                        'e_val': e_val,
-                        'AD': AD,
-                        'AE': AE,
-                        'CD': CD,
-                        'DF': DF,
-                        'D': D,
-                        'E': E,
-                        'ratio_b_a': ratio_b_a,
-                        'ratio_c_a': ratio_c_a,
-                        'ratio_d_a': ratio_d_a,
-                        'ratio_e_a': ratio_e_a,
-                        'ratio_AD_AF': ratio_AD_AF,
-                        'ratio_CD_AF': ratio_CD_AF,
-                        'ratio_AE_AF': ratio_AE_AF,
-                        'ratio_DF_AF': ratio_DF_AF,
+                        'a_val': a_val if a_val else np.nan, # TODO: @Ari: What to put if NaN, i.e. not able to detect in cycle due to bad quality
+                        'b_val': b_val if b_val else np.nan,
+                        'c_val': c_val if c_val else np.nan,
+                        'd_val': d_val if d_val else np.nan,
+                        'e_val': e_val if e_val else np.nan,
+                        'AD': AD if AD else np.nan,
+                        'AE': AE if AE else np.nan,
+                        'CD': CD if CD else np.nan,
+                        'DF': DF if DF else np.nan,
+                        'D': D if D else np.nan,
+                        'E': E if E else np.nan,
+                        'ratio_b_a': ratio_b_a if ratio_b_a else np.nan,
+                        'ratio_c_a': ratio_c_a if ratio_c_a else np.nan,
+                        'ratio_d_a': ratio_d_a if ratio_d_a else np.nan,
+                        'ratio_e_a': ratio_e_a if ratio_e_a else np.nan,
+                        'ratio_AD_AF': ratio_AD_AF if ratio_AD_AF else np.nan,
+                        'ratio_CD_AF': ratio_CD_AF if ratio_CD_AF else np.nan,
+                        'ratio_AE_AF': ratio_AE_AF if ratio_AE_AF else np.nan,
+                        'ratio_DF_AF': ratio_DF_AF if ratio_DF_AF else np.nan,
                         }, index=[0])
 
     if verbose:
@@ -1135,6 +1135,8 @@ def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
     for col in segment_df.columns:
         if col.find('ts') == -1 and len(segment_df[col]) > 1:
             segment_df = segment_df[np.abs(segment_df[col]) < np.abs(quant[col]*2)] ## TODO: @Ari: DOES THIS ALWAYS APPLY? e.g. HRV/ Frequency
+            if len(segment_df) < 2:
+                return pd.DataFrame()
     return segment_df
 
 # returns the x values for those samples in the signal, that are closest to some given y value
