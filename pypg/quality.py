@@ -115,3 +115,39 @@ def skewness(ppg, sampling_frequency, window=1, mode='avg'):
         skewness_value = max(skewness_vector)
 
     return skewness_value
+
+
+# TODO: @Ari: Should we take over as well? CYLCE QUALITY CHECK
+'''for cycle_end in ppg_valleys:
+
+			### PPG cycle extraction
+			#ppg_cycle_signal = filtered_ppg_signal_segment[cycle_start:cycle_end]
+			#ppg_cycle_duration = len(ppg_cycle_signal)
+
+			# Check whether ppg_cycle is full cycle, otherwise skip
+			#min_cycle_len = ((60 / config['max_bpm']) * sampling_frequency)
+			#max_cycle_len = ((60 / config['min_bpm']) * sampling_frequency)
+
+			#is_normal_len = (min_cycle_len <= ppg_cycle_duration <= max_cycle_len)
+
+			#if not is_normal_len:
+			#	cycle_start = cycle_end
+			#	continue'''
+
+	
+# TODO: @Ari: Should we take over as well? Feature Dataframe Quality
+'''### Add NA_COUNT_THRESHOLD?!
+		# EXAMPLES
+		#timefeatures['BPM'] = np.mean(BPM) if BPM else 0
+		#timefeatures['CT_mean'] = np.mean(CT) if CT else 0
+		#timefeatures['CT_var'] = np.var(CT) if CT else 0
+
+		# EXAMPLES
+		#magfeatures['PPG_Mean'] = np.mean(cycle_means) if cycle_means else np.nan
+		#magfeatures['PPG_Var'] = np.mean(cycle_var) if cycle_var else np.nan
+
+		# EXAMPLES
+		#NA_Count_Threshold = 0.8
+		#for key in apgFeaturesWindow:
+		#	apgFeatures[key] = np.mean(apgFeaturesWindow[key]) if len(
+		#		apgFeaturesWindow[key]) / cycleCount >= NA_Count_Threshold else np.nan'''
