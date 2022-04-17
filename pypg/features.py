@@ -165,6 +165,8 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     max_amplitude = ppg.max()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if len(peaks) == 0:
+        return pd.DataFrame()
     sys_peak_ts = ppg.index[peaks[0]] # TODO: @Ari: ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks e.g. check peak height dictionary?)
 
     if verbose:
@@ -179,7 +181,6 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
                         'sys_peak_ts': sys_peak_ts,
                         'SUT': (sys_peak_ts - ppg.index.min()).total_seconds(),
                         'DT': (ppg.index.max() - sys_peak_ts).total_seconds(),
-                        #'BPM': (60 / (ppg.index.max() - ppg.index.min()).total_seconds()), # TODO: CHECK DEF! @Ari: even use? makes sense?
                         'CT': (ppg.index.max() - ppg.index.min()).total_seconds(),
                         'SUT_VAL': (ppg.values[peaks[0]])
                         }, index=[0])
@@ -244,7 +245,6 @@ def nonlinear(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     if len(cycles) == 0:
         return pd.DataFrame()
 
-    cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
         segment_features = pd.concat([segment_features, nonlinear_cycle(cycle,
@@ -307,6 +307,8 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
     ppg_cycle_duration = (ppg.index.max() - ppg.index.min()).total_seconds()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if len(peaks) == 0:
+        return pd.DataFrame()
     sys_peak_ts = ppg.index[peaks[0]] # TODO: @Ari: ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks e.g. check peak height dictionary?)
     sys_peak = (sys_peak_ts - ppg.index.min()).total_seconds()
 
@@ -375,7 +377,6 @@ def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False
     if len(cycles) == 0:
         return pd.DataFrame()
 
-    cur_index = 0
     segment_features = pd.DataFrame()
     for i, cycle in enumerate(cycles):
         segment_features = pd.concat([segment_features, statistical_cycle(cycle,
@@ -437,6 +438,8 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
     ppg = ppg - ppg.min() # TODO: @Ari: If we do it for each cycle seperately, features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if len(peaks) == 0:
+        return pd.DataFrame()
 
     if verbose:
         plt.figure()
@@ -564,6 +567,8 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     ppg = ppg - ppg.min() # TODO: @Ari: If we do it for each cycle seperately, features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+    if len(peaks) == 0:
+        return pd.DataFrame()
     sys_peak_ts = ppg.index[peaks[0]] # TODO: @Ari: ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks e.g. check peak height dictionary?)
     sys_peak = (sys_peak_ts - ppg.index.min()).total_seconds()
 
@@ -575,6 +580,8 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
 
     # second derviative of the PPG signal
     sdppg_signal = np.gradient(np.gradient(ppg.values))
+    if sdppg_signal.size == 0:
+        return pd.DataFrame()
 
     # TODO: features !!! WRITE DOWN REFERENCE NICELY IN TOP DESCRIPTION !!!
     # https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0076585
@@ -591,6 +598,8 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     
     sdppg_signal_peaks, peak_dict = signal.find_peaks(sdppg_signal, height=0)
     sdppg_signal_valleys, valley_dict = signal.find_peaks(-sdppg_signal, height=0)
+    if len(sdppg_signal_peaks) == 0 or len(sdppg_signal_valleys) == 0:
+        return pd.DataFrame()
 
     # initialize SDPPG indices and variables
     a_index = b_index = c_index = d_index = e_index = None
@@ -820,8 +829,10 @@ def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=125.
 
      # Transform signal from time to frequency domain
     freq, mag = _transformSigfromTimetoFreq(ppg.values, sampling_frequency, transformMethod=transformMethod, verbose=verbose)
+    if freq.size == 0 or mag.size == 0:
+        return pd.DataFrame()
 
-    # features
+    # Initialize features dataframe
     segment_features = pd.DataFrame()
 
     # Cut off frequencies
@@ -866,14 +877,6 @@ def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=125.
 
     if verbose:
         print('Cycle Features within Segment:')
-        print(segment_features)
-
-    # TODO: @Ari: OTHER CLEANING METRIC FOR HRV > computes only one value per window, therefore quantile doesnt make sense
-    # remove outliers
-    #segment_features = _clean_segment_features_of_outliers(segment_features)
-
-    if verbose:
-        print('Cycle Features within Segment and no Outliers:')
         print(segment_features)
 
     return segment_features
@@ -938,12 +941,9 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     time_features.loc[cur_index-1, 'CP'] = (
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
-    ## FOR TESTING WITH PPG-BP DATASET:
-    #ibi_series = time_features['CP'].concat(pd.Series([0.77, 0.943, 0.854, 0.644, 0.693, 0.832, 0.999, 0.942]), ignore_index=True)
-    #print(ibi_series)
-
-    # TODO: @Ari: if len(time_features['CP']) < 5 don't compute hrv features
-    # PAPER What should be the minimum threshold
+    if len(time_features['CP']) < 5: # TODO: Check for minimum size (Ultra small HRV)
+        print('PPG Segment too small! Please provide bigger PPG segment')
+        return pd.DataFrame()
 
     temporalHRVFeatures = _temporal_hrv(time_features['CP'])
     frequencyHRVFeatures = _frequency_hrv(time_features['CP'], sampling_frequency)
@@ -952,14 +952,6 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
  
     if verbose:
         print('Cycle Features within Segment:')
-        print(segment_features)
-
-    # TODO: @Ari: OTHER CLEANING METRIC FOR HRV > computes only one value per window, therefore quantile doesnt make sense
-    # remove outliers
-    #segment_features = _clean_segment_features_of_outliers(segment_features)
-
-    if verbose:
-        print('Cycle Features within Segment and no Outliers:')
         print(segment_features)
 
     return segment_features
@@ -1068,7 +1060,9 @@ def _frequency_hrv(ibi_series, sampling_frequency):
         ulf_limit = ulf_limit #TODO: ??????
 	
     freq, mag = _transformSigfromTimetoFreq(ibi_series.values, sampling_frequency, fft_interpolation=fft_interpolation)
-    
+    if freq.size == 0 or mag.size == 0:
+        return pd.DataFrame()
+
     abs_index = freq <= hf_limit
     ulf_index = freq <= ulf_limit
     vlf_index = (freq >= ulf_limit) & (freq <= vlf_limit)
@@ -1098,32 +1092,32 @@ def _frequency_hrv(ibi_series, sampling_frequency):
     hf_peak = freq[hf_index][np.argmax(mag[hf_index])]
     
     freqencyHRVFeatures = pd.DataFrame({
-                            'VLF_peak': vlf_peak,
-                            'VLF_power': vlf,
-                            'VLF_power_log': np.log(vlf),
-                            'VLF_power_rel': vlf_perc,
-                            'LF_peak': lf_peak,
-                            'LF_power': lf,
-                            'LF_power_log': np.log(lf),
-                            'LF_power_rel': lf_perc,
-                            'LF_power_norm': lf_nu,
-                            'HF_peak': hf_peak,
-                            'HF_power': hf,
-                            'HF_power_log': np.log(hf),
-                            'HF_power_rel': hf_perc,
-                            'HF_power_norm': hf_nu,
-                            'ratio_LF_HF': lf/hf}, 
-                            index=[0])
+                            'VLF_peak': vlf_peak if vlf_peak else np.nan,
+                            'VLF_power': vlf if vlf else np.nan,
+                            'VLF_power_log': np.log(vlf) if np.log(vlf) else np.nan,
+                            'VLF_power_rel': vlf_perc if vlf_perc else np.nan,
+                            'LF_peak': lf_peak if lf_peak else np.nan,
+                            'LF_power': lf if lf else np.nan,
+                            'LF_power_log': np.log(lf) if np.log(lf) else np.nan,
+                            'LF_power_rel': lf_perc if lf_perc else np.nan,
+                            'LF_power_norm': lf_nu if lf_nu else np.nan,
+                            'HF_peak': hf_peak if hf_peak else np.nan,
+                            'HF_power': hf if hf else np.nan,
+                            'HF_power_log': np.log(hf) if np.log(hf) else np.nan,
+                            'HF_power_rel': hf_perc if hf_perc else np.nan,
+                            'HF_power_norm': hf_nu if hf_nu else np.nan,
+                            'ratio_LF_HF': lf/hf if lf/hf else np.nan
+                            }, index=[0])
     
     # Add ULF parameters, if band available
     if use_ulf and np.sum(ulf_index) > 0:
         ulf_peak = freq[np.argmax(mag[ulf_index])]
         freqencyHRVFeatures.concat({
-                                'ULF_peak': ulf_peak,
-                                'ULF_power': ulf,
-                                'ULF_power_log': np.log(ulf),
-                                'ULF_power_rel': ulf_perc}, 
-                                index=[0])
+                                'ULF_peak': ulf_peak if ulf_peak else np.nan,
+                                'ULF_power': ulf if ulf else np.nan,
+                                'ULF_power_log': np.log(ulf) if np.log(ulf) else np.nan,
+                                'ULF_power_rel': ulf_perc if ulf_perc else np.nan
+                                }, index=[0])
     
     return freqencyHRVFeatures
 
@@ -1149,19 +1143,21 @@ def _find_xs_for_y(y_s, y_val, sys_peak):
 # transforms a given temporal signal into the spectral domain
 # using different methods and allowing interpolation if required.
 # returns the frequencies and their magnitudes.
-def _transformSigfromTimetoFreq(timeSignal, fs, transformMethod='welch', fft_interpolation=None, verbose=False):
+def _transformSigfromTimetoFreq(timeSignal, sampling_frequency, transformMethod='welch', fft_interpolation=None, verbose=False):
 
     if fft_interpolation:
         x = np.cumsum(timeSignal)
         f_interpol = interpolate.interp1d(x, timeSignal, kind = "cubic", fill_value="extrapolate")
-        t_interpol = np.arange(x[0], x[-1], fft_interpolation/fs)
+        t_interpol = np.arange(x[0], x[-1], fft_interpolation/sampling_frequency)
         
         timeSignal = f_interpol(t_interpol)
-        fs = fft_interpolation
+        sampling_frequency = fft_interpolation
     
     # TODO: Maybe add different methods
     if transformMethod == 'welch':
-        freq, mag = signal.welch(timeSignal, fs, window='hamming', scaling='density', detrend='linear')
+        freq, mag = signal.welch(timeSignal, sampling_frequency, window='hamming', scaling='density', detrend='linear')
+    else:
+        print('Transform method not available. Please select one of the following: [welch]')
     
     if verbose:
         plt.semilogy(freq, mag)
