@@ -763,7 +763,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
         ratio_DF_AF = ((len(sdppg_signal) - c_index) / len(sdppg_signal))
 
     cycle_features = pd.DataFrame({
-                        'a_val': a_val if a_val else np.nan, # TODO: @Ari: What to put if NaN, i.e. not able to detect in cycle due to bad quality
+                        'a_val': a_val if a_val else np.nan,
                         'b_val': b_val if b_val else np.nan,
                         'c_val': c_val if c_val else np.nan,
                         'd_val': d_val if d_val else np.nan,
@@ -941,7 +941,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     time_features.loc[cur_index-1, 'CP'] = (
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
-    if len(time_features['CP']) < 5: # TODO: Check for minimum size (Ultra small HRV)
+    if len(time_features['CP']) < 5: # TODO: Check for minimum size (Ultra short HRV)
         print('PPG Segment too small! Please provide bigger PPG segment')
         return pd.DataFrame()
 
@@ -1019,7 +1019,7 @@ def _temporal_hrv(ibi_series):
 	
     # features
     temporalHRVFeatures = pd.DataFrame({
-                            'SampEn': float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance)), # TODO: @Ari: RETURNS INF AS VALUE, MAYBE SIGNAL SEGMENT TOO SMALL
+                            'SampEn': float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance)),
                             'MeanNN': ibi_series.mean(),
                             'MeanHR': instantaneous_hr.mean(),
                             'MaxHR': rolling_mean_hr.max(),
@@ -1128,7 +1128,7 @@ def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
     quant = segment_df.quantile(treshold)
     for col in segment_df.columns:
         if col.find('ts') == -1 and len(segment_df[col]) > 1:
-            segment_df = segment_df[np.abs(segment_df[col]) < np.abs(quant[col]*2)] ## TODO: @Ari: DOES THIS ALWAYS APPLY? e.g. HRV/ Frequency
+            segment_df = segment_df[np.abs(segment_df[col]) < np.abs(quant[col]*2)]
             if len(segment_df) < 2:
                 return pd.DataFrame()
     return segment_df
