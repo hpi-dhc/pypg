@@ -1130,8 +1130,6 @@ def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
     for col in segment_df.columns:
         if col.find('ts') == -1 and len(segment_df[col]) > 1:
             segment_df = segment_df[np.abs(segment_df[col]) < np.abs(quant[col]*2)]
-            if len(segment_df) < 2: # TODO: Maybe take out because will remove data (Change generate_featueBAsed_Dataset.py)
-                return pd.DataFrame()
     return segment_df
 
 # returns the x values for those samples in the signal, that are closest to some given y value
