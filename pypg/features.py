@@ -970,7 +970,7 @@ def _temporal_hrv(ibi_series):
     nn_threshold = 0.05 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx /// was 50 before
     
     # Prepare data
-    instantaneous_hr = 60 / (ibi_series)
+    instantaneous_hr = 60 / (ibi_series / 1000) # TODO: @Ari: why divided by 1000? from ms to s?
     rolling_mean_hr = instantaneous_hr.rolling(window).mean()
     rolling_24h = ibi_series.rolling(window)
     
@@ -1047,18 +1047,11 @@ def _frequency_hrv(ibi_series, sampling_frequency):
 	
 	## TODO: @Ari: HYPERPARAMETERS to config dict
     fft_interpolation = 4.0
-    use_ulf = False
-    lomb_smoothing = 0.02
     
     vlf_limit = 0.04
     lf_limit = 0.15
     hf_limit = 0.4
-    
-    if not use_ulf or ibi_series.sum() < 300000: #TODO: check
-		# Do not use ULF band on sample shorter than 5 minutes
-        ulf_limit = 0
-    else:
-        ulf_limit = ulf_limit #TODO: ??????
+    ulf_limit = 0
 	
     freq, mag = _transformSigfromTimetoFreq(ibi_series.values, sampling_frequency, fft_interpolation=fft_interpolation)
     if freq.size == 0 or mag.size == 0:
@@ -1109,16 +1102,6 @@ def _frequency_hrv(ibi_series, sampling_frequency):
                             'HF_power_norm': hf_nu if hf_nu else np.nan,
                             'ratio_LF_HF': lf/hf if lf/hf else np.nan
                             }, index=[0])
-    
-    # Add ULF parameters, if band available
-    if use_ulf and np.sum(ulf_index) > 0:
-        ulf_peak = freq[np.argmax(mag[ulf_index])]
-        freqencyHRVFeatures.concat({
-                                'ULF_peak': ulf_peak if ulf_peak else np.nan,
-                                'ULF_power': ulf if ulf else np.nan,
-                                'ULF_power_log': np.log(ulf) if np.log(ulf) else np.nan,
-                                'ULF_power_rel': ulf_perc if ulf_perc else np.nan
-                                }, index=[0])
     
     return freqencyHRVFeatures
 
