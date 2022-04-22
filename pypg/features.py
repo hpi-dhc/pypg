@@ -942,7 +942,8 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
     if len(time_features['CP']) < 5: # TODO: Check for minimum size (Ultra short HRV)
-        print('PPG Segment too small! Please provide bigger PPG segment')
+        if verbose:
+            print('PPG Segment too small! Please provide bigger PPG segment')
         return pd.DataFrame()
 
     temporalHRVFeatures = _temporal_hrv(time_features['CP'])
@@ -1129,7 +1130,7 @@ def _clean_segment_features_of_outliers(segment_df, treshold=0.8):
     for col in segment_df.columns:
         if col.find('ts') == -1 and len(segment_df[col]) > 1:
             segment_df = segment_df[np.abs(segment_df[col]) < np.abs(quant[col]*2)]
-            if len(segment_df) < 2:
+            if len(segment_df) < 2: # TODO: Maybe take out because will remove data (Change generate_featueBAsed_Dataset.py)
                 return pd.DataFrame()
     return segment_df
 
