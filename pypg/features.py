@@ -967,7 +967,7 @@ def _temporal_hrv(ibi_series):
         raise Exception('Signal values not accepted, enter a pandas.Series or ndarray.')
     
     window = 5
-    nn_threshold = 0.05 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx /// was 50 before
+    nn_threshold = 50 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx /// was 50 before
     
     # Prepare data
     instantaneous_hr = 60 / (ibi_series / 1000) # TODO: @Ari: why divided by 1000? from ms to s?
