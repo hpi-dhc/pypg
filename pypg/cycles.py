@@ -585,7 +585,6 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
         fullHarmonicBins= np.append(fullHarmonicBins, allBins)
         fullHarmonicBinList.append(allBins)
         harmonicBorders[i,:] = [allBins[0], allBins[-1]]
-        print(freq)
 
     fundIndizes.sort()
     pFund = bandpower(ps[fundIndizes[0]:fundIndizes[-1]]) #get power of fundamental
@@ -639,9 +638,9 @@ def getPeakInArea(psd, faxis, estimation, searchWidthHz = 10):
     peakbin = binLow+np.argmax(psd[binLow:binHi])
     return peakbin, faxis[peakbin]
 
-def getHarmonics(fund,sr,nHarmonics=6,aliased=False):
+def getHarmonics(fundFrequency,sr,nHarmonics=6,aliased=False):
     harmonicMultipliers = np.arange(2,nHarmonics+2)
-    harmonicFs = fund*harmonicMultipliers
+    harmonicFs = fundFrequency*harmonicMultipliers
     if not aliased:
         harmonicFs[harmonicFs>sr/2] = -1
         harmonicFs = np.delete(harmonicFs,harmonicFs==-1)
