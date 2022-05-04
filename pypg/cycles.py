@@ -561,7 +561,11 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
     if len(initial_cycle_starts) <= 1:
         return []
 
-    faxis, ps = signal.periodogram(ppg[cycle_start:cycle_end], fs=sampling_frequency, window=('kaiser',38)) #get periodogram, parametrized like in matlab
+    '''
+    Code from https://github.com/hrtlacek/SNR/blob/main/SNR.ipynb
+    '''
+
+    faxis, ps = signal.periodogram(ppg, fs=sampling_frequency, window=('kaiser',38)) #get periodogram, parametrized like in matlab
     fundBin = np.argmax(ps) #estimate fundamental at maximum amplitude, get the bin number
     fundIndizes = getIndizesAroundPeak(ps, fundBin) #get bin numbers around fundamental peak
     fundFrequency = faxis[fundBin] #frequency of fundamental
@@ -598,21 +602,21 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
 
     noisePower = bandpower(noisePrepared)
 
-    r = 10 * np.log10(pFund/noisePower)
+    SNR = 10 * np.log10(pFund/noisePower)
 
     if verbose:
-        print("SNR = " + r)
+        print("SNR = ", SNR)
 
     cycles_indices = []
 
-    if r >= -7:
+    if SNR >= -7:
         cycle_start = 0
 
         for cycle_end in initial_cycle_starts[:-1]:
 
             cycles_indices.append((cycle_start, cycle_end))
             cycle_start = cycle_end
-        
+            
     if return_type == 'index':
         return cycles_indices
 
