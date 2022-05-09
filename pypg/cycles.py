@@ -453,18 +453,13 @@ def find_with_signalLength(ppg, sampling_frequency, return_type='original', fact
                 cycles.append(ppg[cycle_index[0]:cycle_index[1]])
         return cycles
 
-def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
+def find_with_SNR(ppg, sampling_frequency, return_type='original', thresholdSNR=-7, factor=0.667,
                       distance=None, height=None, threshold=None, prominence=None, width=None,
                       wlen=None, rel_height=0.5, plateau_size=None,
                       verbose=False):
     """
     Finds PPG cycles in a PPG segment based on the method suggested by Li and
-    Clifford (2012). All detected cycles in the same window are combined into a
-    custom PPG signal template. Individual cycles are then compared with the
-    template using two signal quality indices (SQI): (1) direct linear
-    correlation and (2) direct linear correlation between the cycle, re-sampled
-    to match the template length, and the template itself. Only if both
-    correlations lie above a threshold, the cycle is considered valid.
+    Clifford (2012). #TODO: Write description
 
     Parameters
     ----------
@@ -553,7 +548,7 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
 
     if return_type not in ['index', 'original']:
         raise Exception('Wrong value for return_type.')
-
+    
     initial_cycle_starts = find_onset(signal_values, sampling_frequency, factor, distance,
                                       height, threshold, prominence, width, wlen, rel_height,
                                       plateau_size, verbose)
@@ -561,17 +556,13 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
     if len(initial_cycle_starts) <= 1:
         return []
 
-    '''
-    Code from https://github.com/hrtlacek/SNR/blob/main/SNR.ipynb
-    '''
-
     faxis, ps = signal.periodogram(ppg, fs=sampling_frequency, window=('kaiser',38)) #get periodogram, parametrized like in matlab
     fundBin = np.argmax(ps) #estimate fundamental at maximum amplitude, get the bin number
-    fundIndizes = getIndizesAroundPeak(ps, fundBin) #get bin numbers around fundamental peak
+    fundIndizes = _getIndizesAroundPeak(ps, fundBin) #get bin numbers around fundamental peak
     fundFrequency = faxis[fundBin] #frequency of fundamental
 
     nHarmonics = 6
-    harmonicFs = getHarmonics(fundFrequency, sampling_frequency, nHarmonics=nHarmonics, aliased=True) #get harmonic frequencies
+    harmonicFs = _getHarmonics(fundFrequency, sampling_frequency, nHarmonics=nHarmonics, aliased=True) #get harmonic frequencies
 
     harmonicBorders = np.zeros([2,nHarmonics], dtype=np.int16).T
     fullHarmonicBins = np.array([], dtype=np.int16)
@@ -582,16 +573,16 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
         searcharea = 0.1*fundFrequency
         estimation = harmonic
             
-        binNum, freq = getPeakInArea(ps,faxis,estimation,searcharea)
+        binNum, freq = _getPeakInArea(ps,faxis,estimation,searcharea)
         harmPeakFreqs.append(freq)
         harmPeaks.append(ps[binNum])
-        allBins = getIndizesAroundPeak(ps, binNum,searchWidth=1000)
+        allBins = _getIndizesAroundPeak(ps, binNum,searchWidth=1000)
         fullHarmonicBins= np.append(fullHarmonicBins, allBins)
         fullHarmonicBinList.append(allBins)
         harmonicBorders[i,:] = [allBins[0], allBins[-1]]
 
     fundIndizes.sort()
-    pFund = bandpower(ps[fundIndizes[0]:fundIndizes[-1]]) #get power of fundamental
+    pFund = _bandpower(ps[fundIndizes[0]:fundIndizes[-1]]) #get power of fundamental
 
     noisePrepared = copy.copy(ps)
     noisePrepared[fundIndizes] = 0
@@ -600,7 +591,7 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
     noisePrepared[fundIndizes] = noiseMean
     noisePrepared[fullHarmonicBins] = noiseMean
 
-    noisePower = bandpower(noisePrepared)
+    noisePower = _bandpower(noisePrepared)
 
     SNR = 10 * np.log10(pFund/noisePower)
 
@@ -609,11 +600,11 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
 
     cycles_indices = []
 
-    if SNR >= -7:
+    if SNR >= thresholdSNR:
+        
         cycle_start = 0
 
         for cycle_end in initial_cycle_starts[:-1]:
-
             cycles_indices.append((cycle_start, cycle_end))
             cycle_start = cycle_end
             
@@ -630,19 +621,19 @@ def find_with_SNR(ppg, sampling_frequency, return_type='original', factor=0.667,
         return cycles
 
 
-def freqToBin(fAxis, Freq):
+def _freqToBin(fAxis, Freq):
     return np.argmin(abs(fAxis-Freq))
 
-def getPeakInArea(psd, faxis, estimation, searchWidthHz = 10):
+def _getPeakInArea(psd, faxis, estimation, searchWidthHz = 10):
     """
     returns bin and frequency of the maximum in an area
     """
-    binLow = freqToBin(faxis, estimation-searchWidthHz)
-    binHi = freqToBin(faxis, estimation+searchWidthHz)
+    binLow = _freqToBin(faxis, estimation-searchWidthHz)
+    binHi = _freqToBin(faxis, estimation+searchWidthHz)
     peakbin = binLow+np.argmax(psd[binLow:binHi])
     return peakbin, faxis[peakbin]
 
-def getHarmonics(fundFrequency,sr,nHarmonics=6,aliased=False):
+def _getHarmonics(fundFrequency,sr,nHarmonics=6,aliased=False):
     harmonicMultipliers = np.arange(2,nHarmonics+2)
     harmonicFs = fundFrequency*harmonicMultipliers
     if not aliased:
@@ -655,7 +646,7 @@ def getHarmonics(fundFrequency,sr,nHarmonics=6,aliased=False):
         harmonicFs[oddEvenNyq==1] = (sr/2)-harmonicFs[oddEvenNyq==1]
     return harmonicFs 
 
-def getIndizesAroundPeak(arr, peakIndex,searchWidth=1000):
+def _getIndizesAroundPeak(arr, peakIndex,searchWidth=1000):
     peakBins = []
     magMax = arr[peakIndex]
     curVal = magMax
@@ -678,7 +669,7 @@ def getIndizesAroundPeak(arr, peakIndex,searchWidth=1000):
             curVal=newVal
     return np.array(list(set(peakBins)))
 
-def bandpower(ps, mode='psd'):
+def _bandpower(ps, mode='psd'):
     """
     estimate bandpower, see https://de.mathworks.com/help/signal/ref/bandpower.html
     """
@@ -687,4 +678,4 @@ def bandpower(ps, mode='psd'):
         l2norm = np.linalg.norm(x)**2./len(x)
         return l2norm
     elif mode == 'psd':
-        return sum(ps) 
+        return sum(ps)
