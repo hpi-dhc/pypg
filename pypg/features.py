@@ -43,7 +43,8 @@ import pandas as pd
 import nolds
 from scipy import signal, stats, interpolate
 
-from .cycles import find_with_template
+from .cycles import find_with_template, find_with_SNR
+from .plots import marks_plot
 
 
 def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
@@ -917,37 +918,33 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         ppg = pd.Series(ppg)
     elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
-
-    cycles = find_with_template(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
-    # all signal peaks
-    all_peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
-    if verbose:
-        print('All Peaks: ', all_peaks)
+    
+    cycles = find_with_SNR(ppg, sampling_frequency, factor=0.6667, verbose=verbose)
     if len(cycles) == 0:
         return pd.DataFrame()
-
-    cur_index = 0
-    time_features = pd.DataFrame()
-    for i, cycle in enumerate(cycles):
-        time_features = pd.concat([time_features, time_cycle(cycle, sampling_frequency,
-                                    factor, unit, verbose=verbose)],
-                                    ignore_index=True)
-        if i > 0:
-            time_features.loc[cur_index-1, 'CP'] = (
-                time_features.loc[cur_index, 'sys_peak_ts'] - time_features.loc[cur_index-1, 'sys_peak_ts']).total_seconds()
-        cur_index = cur_index + 1
-    # last cycle or only cycle need to relies on the difference between the general peaks
-    all_peaks_index = len(all_peaks)-1
-    time_features.loc[cur_index-1, 'CP'] = (
-        all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
     
-    if len(time_features['CP']) < 5: # TODO: Check for minimum size (Ultra short HRV)
+    # all signal peaks
+    all_peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
+
+    if verbose:
+        print('All Peaks: ', all_peaks)
+
+    sys_peak_ts_curr = 0
+    ibi_series = pd.Series()
+    for i, peak in enumerate(all_peaks):
+        sys_peak_ts_prior = sys_peak_ts_curr
+        sys_peak_ts_curr = ppg.index[peak]
+
+        if i > 0:
+            ibi_series = ibi_series.append(pd.Series([sys_peak_ts_curr - sys_peak_ts_prior]), ignore_index=True)
+    
+    if len(ibi_series) < 5: # TODO: Check for minimum size (Ultra short HRV)
         if verbose:
             print('PPG Segment too small! Please provide bigger PPG segment')
         return pd.DataFrame()
 
-    temporalHRVFeatures = _temporal_hrv(time_features['CP'])
-    frequencyHRVFeatures = _frequency_hrv(time_features['CP'], sampling_frequency)
+    temporalHRVFeatures = _temporal_hrv(ibi_series)
+    frequencyHRVFeatures = _frequency_hrv(ibi_series, sampling_frequency)
 
     segment_features = pd.concat([temporalHRVFeatures.reset_index(drop=True), frequencyHRVFeatures], axis=1)
  
