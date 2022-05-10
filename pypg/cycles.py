@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import signal, stats
+import copy
 
 from .plots import simple_plot, marks_plot
 
@@ -239,6 +240,7 @@ def find_with_template(ppg, sampling_frequency, return_type='original', factor=0
     cycle_starts = initial_cycle_starts[:-1]
     while cycle_starts[-1] + template_length > len(signal_values):
         cycle_starts = cycle_starts[:-1]
+
     template = []
     for i in range(template_length):
         template.append(np.mean(signal_values[cycle_starts + i]))
@@ -304,3 +306,376 @@ def find_with_template(ppg, sampling_frequency, return_type='original', factor=0
         return cycles
     if return_type == 'index':
         return cycles_indices
+
+def find_with_signalLength(ppg, sampling_frequency, return_type='original', factor=0.667,
+                      distance=None, height=None, threshold=None, prominence=None, width=None,
+                      wlen=None, rel_height=0.5, plateau_size=None,
+                      verbose=False):
+    """
+    Finds PPG cycles in a PPG segment based on the method suggested by Li and
+    Clifford (2012). All detected cycles in the same window are combined into a
+    custom PPG signal template. Individual cycles are then compared with the
+    template using two signal quality indices (SQI): (1) direct linear
+    correlation and (2) direct linear correlation between the cycle, re-sampled
+    to match the template length, and the template itself. Only if both
+    correlations lie above a threshold, the cycle is considered valid.
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    return_type: str, optional
+        The type of values to be returned (original or index), by default
+        "original". Original returns a list of pd.Series or np.ndarray with the
+        original data partioned into cycles. Index returns a list of tuples with
+        the indexes of the begining and ending of each cycle in the original data.
+    factor: float, optional
+        Number that is used to calculate the distance in relation to the
+        sampling_frequency, by default 0.667 (or 66.7%). The factor is based
+        on the paper by Elgendi et al. (2013).
+    distance : number, optional
+        Minimum horizontal distance (>=1) between the cycles start points,
+        by default None. However, the function assumes (factor *
+        sampling_frequency) when None is given. For more information check
+        the SciPy documentation.
+    height : number or ndarray or sequence, optional
+        Required height of peaks. Either a number, None, an array matching x
+        or a 2-element sequence of the former, by default None. For more information check
+        the SciPy documentation.
+    threshold : number or ndarray or sequence, optional
+        Required threshold of peaks, the vertical distance to its
+        neighboring samples. Either a number, None, an array matching x or a
+        2-element sequence of the former, by default None. For more
+        information check the SciPy documentation.
+    prominence : number or ndarray or sequence, optional
+        Required prominence of peaks. Either a number, None, an array
+        matching x or a 2-element sequence of the former, by default None.
+        For more information check the SciPy documentation.
+    width : number or ndarray or sequence, optional
+        Required width of peaks in samples. Either a number, None, an array
+        matching x or a 2-element sequence of the former, by default None.
+        For more information check the SciPy documentation.
+    wlen : int, optional
+        Used for calculation of the peaks prominences, thus it is only used
+        if one of the arguments prominence or width is given, by default
+        None. For more information check the SciPy documentation.
+    rel_height : float, optional
+        Used for calculation of the peaks width, thus it is only used if
+        width is given, by default 0.5 as defined by SciPy, by
+        default None. For more information check the SciPy documentation.
+    plateau_size : number or ndarray or sequence, optional
+        Required size of the flat top of peaks in samples. Either a number,
+        None, an array matching x or a 2-element sequence of the former, by
+        default None. For more information check the SciPy documentation.
+    correlation_threshold : float, optional
+        Number that is used to calculate the correlation threshold from the
+        template to the individual cycles, by default 0.8.
+    verbose : boolean, optinal
+        Verbose is used to print different graphs such as the onset of each
+        cycle, the cycle template and all valid cycles, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+        When return_type is neither 'original' or 'index'.
+
+    Returns
+    ----------
+    cycles: list
+        If "original" returns a list of pd.Series or np.ndarray with the valid PPG cycles.
+        If "index" returns a list of tuples with the index of begining and
+        ending of each valid PPG cycle.
+
+    References
+    ----------
+    Li, Q., & Clifford, G. D. (2012). Dynamic time warping and machine
+    learning for signal quality assessment of pulsatile signals.
+    Physiological Measurement, 33(9), 1491–1501.
+    https://doi.org/10.1088/0967-3334/33/9/1491
+    """
+
+    if isinstance(ppg, pd.core.series.Series):
+        signal_values = ppg.values
+    elif isinstance(ppg, np.ndarray):
+        signal_values = ppg
+    else:
+        raise Exception('PPG values not accepted, enter either'
+                        +' pandas.Series or ndarray.')
+
+    if return_type not in ['index', 'original']:
+        raise Exception('Wrong value for return_type.')
+
+    initial_cycle_starts = find_onset(signal_values, sampling_frequency, factor, distance,
+                                      height, threshold, prominence, width, wlen, rel_height,
+                                      plateau_size, verbose)
+
+    if len(initial_cycle_starts) <= 1:
+        return []
+
+    cycle_start = 0
+
+    cycles_indices = []
+
+    for cycle_end in initial_cycle_starts[:-1]:
+        ppg_cycle = signal_values[cycle_start:cycle_end]
+
+        ppg_cycle_duration = len(ppg_cycle)
+        
+        ## Check whether ppg_cycle is full cycle, otherwise skip
+        min_bpm = 40
+        max_bpm = 200
+
+        min_cycle_len = ((60 / max_bpm) * sampling_frequency)
+        max_cycle_len = ((60 / min_bpm) * sampling_frequency)
+        
+        is_normal_len = (min_cycle_len <= ppg_cycle_duration <= max_cycle_len)
+        
+        if not is_normal_len:
+            cycle_start = cycle_end
+            continue
+
+        cycles_indices.append((cycle_start, cycle_end))
+
+        cycle_start = cycle_end
+        
+    if return_type == 'index':
+        return cycles_indices
+
+    if return_type == 'original':
+        cycles = []
+        for i, cycle_index in enumerate(cycles_indices):
+            if isinstance(ppg, pd.core.series.Series):
+                cycles.append(ppg.iloc[cycle_index[0]:cycle_index[1]])
+            elif isinstance(ppg, np.ndarray):
+                cycles.append(ppg[cycle_index[0]:cycle_index[1]])
+        return cycles
+
+def find_with_SNR(ppg, sampling_frequency, return_type='original', thresholdSNR=-7, factor=0.667,
+                      distance=None, height=None, threshold=None, prominence=None, width=None,
+                      wlen=None, rel_height=0.5, plateau_size=None,
+                      verbose=False):
+    """
+    Finds PPG cycles in a PPG segment based on the method suggested by Li and
+    Clifford (2012). #TODO: Write description
+
+    Parameters
+    ----------
+    ppg : pandas.Series, ndarray
+        The PPG signal.
+    sampling_frequency : int
+        The sampling frequency of the signal in Hz.
+    return_type: str, optional
+        The type of values to be returned (original or index), by default
+        "original". Original returns a list of pd.Series or np.ndarray with the
+        original data partioned into cycles. Index returns a list of tuples with
+        the indexes of the begining and ending of each cycle in the original data.
+    factor: float, optional
+        Number that is used to calculate the distance in relation to the
+        sampling_frequency, by default 0.667 (or 66.7%). The factor is based
+        on the paper by Elgendi et al. (2013).
+    distance : number, optional
+        Minimum horizontal distance (>=1) between the cycles start points,
+        by default None. However, the function assumes (factor *
+        sampling_frequency) when None is given. For more information check
+        the SciPy documentation.
+    height : number or ndarray or sequence, optional
+        Required height of peaks. Either a number, None, an array matching x
+        or a 2-element sequence of the former, by default None. For more information check
+        the SciPy documentation.
+    threshold : number or ndarray or sequence, optional
+        Required threshold of peaks, the vertical distance to its
+        neighboring samples. Either a number, None, an array matching x or a
+        2-element sequence of the former, by default None. For more
+        information check the SciPy documentation.
+    prominence : number or ndarray or sequence, optional
+        Required prominence of peaks. Either a number, None, an array
+        matching x or a 2-element sequence of the former, by default None.
+        For more information check the SciPy documentation.
+    width : number or ndarray or sequence, optional
+        Required width of peaks in samples. Either a number, None, an array
+        matching x or a 2-element sequence of the former, by default None.
+        For more information check the SciPy documentation.
+    wlen : int, optional
+        Used for calculation of the peaks prominences, thus it is only used
+        if one of the arguments prominence or width is given, by default
+        None. For more information check the SciPy documentation.
+    rel_height : float, optional
+        Used for calculation of the peaks width, thus it is only used if
+        width is given, by default 0.5 as defined by SciPy, by
+        default None. For more information check the SciPy documentation.
+    plateau_size : number or ndarray or sequence, optional
+        Required size of the flat top of peaks in samples. Either a number,
+        None, an array matching x or a 2-element sequence of the former, by
+        default None. For more information check the SciPy documentation.
+    correlation_threshold : float, optional
+        Number that is used to calculate the correlation threshold from the
+        template to the individual cycles, by default 0.8.
+    verbose : boolean, optinal
+        Verbose is used to print different graphs such as the onset of each
+        cycle, the cycle template and all valid cycles, by default False.
+
+    Raises
+    ----------
+    Exception
+        When PPG values are neither pandas.Series nor ndarray.
+        When return_type is neither 'original' or 'index'.
+
+    Returns
+    ----------
+    cycles: list
+        If "original" returns a list of pd.Series or np.ndarray with the valid PPG cycles.
+        If "index" returns a list of tuples with the index of begining and
+        ending of each valid PPG cycle.
+
+    References
+    ----------
+    Li, Q., & Clifford, G. D. (2012). Dynamic time warping and machine
+    learning for signal quality assessment of pulsatile signals.
+    Physiological Measurement, 33(9), 1491–1501.
+    https://doi.org/10.1088/0967-3334/33/9/1491
+    """
+
+    if isinstance(ppg, pd.core.series.Series):
+        signal_values = ppg.values
+    elif isinstance(ppg, np.ndarray):
+        signal_values = ppg
+    else:
+        raise Exception('PPG values not accepted, enter either'
+                        +' pandas.Series or ndarray.')
+
+    if return_type not in ['index', 'original']:
+        raise Exception('Wrong value for return_type.')
+    
+    initial_cycle_starts = find_onset(signal_values, sampling_frequency, factor, distance,
+                                      height, threshold, prominence, width, wlen, rel_height,
+                                      plateau_size, verbose)
+
+    if len(initial_cycle_starts) <= 1:
+        return []
+
+    faxis, ps = signal.periodogram(ppg, fs=sampling_frequency, window=('kaiser',38)) #get periodogram, parametrized like in matlab
+    fundBin = np.argmax(ps) #estimate fundamental at maximum amplitude, get the bin number
+    fundIndizes = _getIndizesAroundPeak(ps, fundBin) #get bin numbers around fundamental peak
+    fundFrequency = faxis[fundBin] #frequency of fundamental
+
+    nHarmonics = 6
+    harmonicFs = _getHarmonics(fundFrequency, sampling_frequency, nHarmonics=nHarmonics, aliased=True) #get harmonic frequencies
+
+    harmonicBorders = np.zeros([2,nHarmonics], dtype=np.int16).T
+    fullHarmonicBins = np.array([], dtype=np.int16)
+    fullHarmonicBinList = []
+    harmPeakFreqs=[]
+    harmPeaks=[]
+    for i,harmonic in enumerate(harmonicFs):
+        searcharea = 0.1*fundFrequency
+        estimation = harmonic
+            
+        binNum, freq = _getPeakInArea(ps,faxis,estimation,searcharea)
+        harmPeakFreqs.append(freq)
+        harmPeaks.append(ps[binNum])
+        allBins = _getIndizesAroundPeak(ps, binNum,searchWidth=1000)
+        fullHarmonicBins= np.append(fullHarmonicBins, allBins)
+        fullHarmonicBinList.append(allBins)
+        harmonicBorders[i,:] = [allBins[0], allBins[-1]]
+
+    fundIndizes.sort()
+    pFund = _bandpower(ps[fundIndizes[0]:fundIndizes[-1]]) #get power of fundamental
+
+    noisePrepared = copy.copy(ps)
+    noisePrepared[fundIndizes] = 0
+    noisePrepared[fullHarmonicBins] = 0
+    noiseMean = np.median(noisePrepared[noisePrepared!=0])
+    noisePrepared[fundIndizes] = noiseMean
+    noisePrepared[fullHarmonicBins] = noiseMean
+
+    noisePower = _bandpower(noisePrepared)
+
+    SNR = 10 * np.log10(pFund/noisePower)
+
+    if verbose:
+        print("SNR = ", SNR)
+
+    cycles_indices = []
+
+    if SNR >= thresholdSNR:
+        
+        cycle_start = 0
+
+        for cycle_end in initial_cycle_starts[:-1]:
+            cycles_indices.append((cycle_start, cycle_end))
+            cycle_start = cycle_end
+            
+    if return_type == 'index':
+        return cycles_indices
+
+    if return_type == 'original':
+        cycles = []
+        for i, cycle_index in enumerate(cycles_indices):
+            if isinstance(ppg, pd.core.series.Series):
+                cycles.append(ppg.iloc[cycle_index[0]:cycle_index[1]])
+            elif isinstance(ppg, np.ndarray):
+                cycles.append(ppg[cycle_index[0]:cycle_index[1]])
+        return cycles
+
+
+def _freqToBin(fAxis, Freq):
+    return np.argmin(abs(fAxis-Freq))
+
+def _getPeakInArea(psd, faxis, estimation, searchWidthHz = 10):
+    """
+    returns bin and frequency of the maximum in an area
+    """
+    binLow = _freqToBin(faxis, estimation-searchWidthHz)
+    binHi = _freqToBin(faxis, estimation+searchWidthHz)
+    peakbin = binLow+np.argmax(psd[binLow:binHi])
+    return peakbin, faxis[peakbin]
+
+def _getHarmonics(fundFrequency,sr,nHarmonics=6,aliased=False):
+    harmonicMultipliers = np.arange(2,nHarmonics+2)
+    harmonicFs = fundFrequency*harmonicMultipliers
+    if not aliased:
+        harmonicFs[harmonicFs>sr/2] = -1
+        harmonicFs = np.delete(harmonicFs,harmonicFs==-1)
+    else:
+        nyqZone = np.floor(harmonicFs/(sr/2))
+        oddEvenNyq = nyqZone%2  
+        harmonicFs = np.mod(harmonicFs,sr/2)
+        harmonicFs[oddEvenNyq==1] = (sr/2)-harmonicFs[oddEvenNyq==1]
+    return harmonicFs 
+
+def _getIndizesAroundPeak(arr, peakIndex,searchWidth=1000):
+    peakBins = []
+    magMax = arr[peakIndex]
+    curVal = magMax
+    for i in range(searchWidth):
+        newBin = peakIndex+i
+        newVal = arr[newBin]
+        if newVal>curVal:
+            break
+        else:
+            peakBins.append(int(newBin))
+            curVal=newVal
+    curVal = magMax
+    for i in range(searchWidth):
+        newBin = peakIndex-i
+        newVal = arr[newBin]
+        if newVal>curVal:
+            break
+        else:
+            peakBins.append(int(newBin))
+            curVal=newVal
+    return np.array(list(set(peakBins)))
+
+def _bandpower(ps, mode='psd'):
+    """
+    estimate bandpower, see https://de.mathworks.com/help/signal/ref/bandpower.html
+    """
+    if mode=='time':
+        x = ps
+        l2norm = np.linalg.norm(x)**2./len(x)
+        return l2norm
+    elif mode == 'psd':
+        return sum(ps)
