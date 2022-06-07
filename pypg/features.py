@@ -192,6 +192,7 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         if verbose:
             plt.scatter([x_1, x_2], ppg[[x_1, x_2]])
         cycle_features.loc[0, 'DW_'+str(p_value)] = (x_2 - sys_peak_ts).total_seconds()
+        cycle_features.loc[0, 'SW_'+str(p_value)] = (sys_peak_ts - x_1).total_seconds()
         cycle_features.loc[0, 'DW_SW_sum_'+str(p_value)] = (x_2 - x_1).total_seconds()
         cycle_features.loc[0, 'DW_SW_ratio_'+str(p_value)] = (x_2 - sys_peak_ts) / (sys_peak_ts - x_1)
     
