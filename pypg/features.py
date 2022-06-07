@@ -792,7 +792,7 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     return cycle_features
 
 
-def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=125.0, interval_size=5, verbose=False):
+def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=12.5, interval_size=5, verbose=False):
     """
     Extracts frequency features from PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
     which each line contains the features for a given valid cycle (as described
