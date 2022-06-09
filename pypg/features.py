@@ -888,6 +888,7 @@ def frequency(ppg, sampling_frequency, transformMethod='welch', cutoff_freq=12.5
     return segment_features
 
 
+# TODO: unit could be removed
 def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
     Extracts hrv features from a given PPG segment. 
