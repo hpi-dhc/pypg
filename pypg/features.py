@@ -46,7 +46,7 @@ from scipy import signal, stats, interpolate
 from .cycles import find_with_template, find_with_SNR
 from .plots import marks_plot
 
-
+# TODO: unit could be removed
 def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
     Extracts time domain features from PPG cycles in a give PPG segment as
@@ -102,9 +102,10 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         if i > 0:
             segment_features.loc[cur_index-1, 'CP'] = (
                 segment_features.loc[cur_index, 'sys_peak_ts'] - segment_features.loc[cur_index-1,
-                'sys_peak_ts']).total_seconds()
+                'sys_peak_ts'])/sampling_frequency
         cur_index = cur_index + 1
     
+    # TODO: Remove CP because some cycles are skipped which leads to wrong CP values
     # last cycle or only cycle need to relies on the difference between the general peaks
     all_peaks_index = len(all_peaks)-1
     segment_features.loc[cur_index-1, 'CP'] = (
@@ -122,6 +123,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         print(segment_features)
     return segment_features
 
+# TODO: unit could be removed
 def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
     Extracts time domain features for a PPG cycle. Returns a pandas.Series with
@@ -158,31 +160,30 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
-    if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit) # TODO: @Ari: Sampling Frequncy considered???
+    if isinstance(ppg.index, pd.RangeIndex):
+        ppg.index = list(ppg.index)
 
-    ppg = ppg.interpolate(method='time')
+    #ppg = ppg.interpolate(method='time')
     ppg = ppg - ppg.min() # TODO: @Ari: If we do it for each cycle seperately, features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
     max_amplitude = ppg.max()
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
     if len(peaks) == 0:
         return pd.DataFrame()
-    sys_peak_ts = ppg.index[peaks[0]] # TODO: @Ari: ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks e.g. check peak height dictionary?)
+    sys_peak_ts = ppg.index[peaks[0]]
 
     if verbose:
         plt.figure()
-        plt.xlim((ppg.index.min(), ppg.index.max()))
-        plt.scatter(ppg.index[peaks], ppg[peaks])
+        plt.scatter(ppg.index[peaks[0]], ppg.values[peaks[0]])
         plt.plot(ppg.index, ppg.values)
-
+        
     # features
     cycle_features = pd.DataFrame({
                         'start_ts': ppg.index.min(),
                         'sys_peak_ts': sys_peak_ts,
-                        'SUT': (sys_peak_ts - ppg.index.min()).total_seconds(),
-                        'DT': (ppg.index.max() - sys_peak_ts).total_seconds(),
-                        'CT': (ppg.index.max() - ppg.index.min()).total_seconds(),
+                        'SUT': (sys_peak_ts - ppg.index.min())/sampling_frequency,
+                        'DT': (ppg.index.max() - sys_peak_ts)/sampling_frequency,
+                        'CT': (ppg.index.max() - ppg.index.min())/sampling_frequency,
                         'SUT_VAL': (ppg.values[peaks[0]])
                         }, index=[0])
 
@@ -190,10 +191,10 @@ def time_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
         p_ampl = p_value / 100 * max_amplitude
         x_1, x_2 = _find_xs_for_y(ppg, p_ampl, peaks[0])
         if verbose:
-            plt.scatter([x_1, x_2], ppg[[x_1, x_2]])
-        cycle_features.loc[0, 'DW_'+str(p_value)] = (x_2 - sys_peak_ts).total_seconds()
-        cycle_features.loc[0, 'SW_'+str(p_value)] = (sys_peak_ts - x_1).total_seconds()
-        cycle_features.loc[0, 'DW_SW_sum_'+str(p_value)] = (x_2 - x_1).total_seconds()
+            plt.scatter([x_1, x_2], [ppg.where(ppg.index==x_1).dropna(), ppg.where(ppg.index==x_2).dropna()])
+        cycle_features.loc[0, 'DW_'+str(p_value)] = (x_2 - sys_peak_ts)/sampling_frequency
+        cycle_features.loc[0, 'SW_'+str(p_value)] = (sys_peak_ts - x_1)/sampling_frequency
+        cycle_features.loc[0, 'DW_SW_sum_'+str(p_value)] = (x_2 - x_1)/sampling_frequency
         cycle_features.loc[0, 'DW_SW_ratio_'+str(p_value)] = (x_2 - sys_peak_ts) / (sys_peak_ts - x_1)
     
     if verbose:
