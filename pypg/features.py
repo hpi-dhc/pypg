@@ -336,6 +336,7 @@ def nonlinear_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=Fa
     return cycle_features
 
 
+# TODO: unit could be removed
 def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
     Extracts statistical features from PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
@@ -400,6 +401,7 @@ def statistical(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False
 
     return segment_features
 
+# TODO: unit could be removed
 def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
     Extracts statistical features for a PPG cycle. Returns a pandas.Series.
@@ -435,10 +437,10 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
     elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
-    if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit) # TODO: @Ari: Sampling Frequncy considered???
-
-    ppg = ppg.interpolate(method='time')
+    if isinstance(ppg.index, pd.RangeIndex):
+        ppg.index = list(ppg.index)
+    
+    #ppg = ppg.interpolate(method='time')
     ppg = ppg - ppg.min() # TODO: @Ari: If we do it for each cycle seperately, features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
@@ -447,8 +449,7 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
 
     if verbose:
         plt.figure()
-        plt.xlim((ppg.index.min(), ppg.index.max()))
-        plt.scatter(ppg.index[peaks], ppg[peaks])
+        plt.scatter(ppg.index[peaks[0]], ppg.values[peaks[0]])
         plt.plot(ppg.index, ppg.values)
 
     # features
