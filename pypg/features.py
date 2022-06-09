@@ -466,6 +466,7 @@ def statistical_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=
     return cycle_features
 
 
+# TODO: unit could be removed
 def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     """
     Extracts features from the second derivative (SDPPG or APG) of the PPG cycles in a give PPG segment. Returns a pandas.DataFrame in
@@ -530,6 +531,7 @@ def sdppg(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
 
     return segment_features
 
+# TODO: unit could be removed
 def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False):
     """
     Extracts features from the second derivative (SDPPG or APG) for the PPG cycles. Returns a pandas.Series.
@@ -565,22 +567,21 @@ def sdppg_cycle(ppg, sampling_frequency, factor=0.667, unit='ms', verbose=False)
     elif not isinstance(ppg, pd.core.series.Series):
         raise Exception('PPG values not accepted, enter a pandas.Series or ndarray.')
 
-    if not isinstance(ppg.index, pd.DatetimeIndex):
-        ppg.index = pd.to_datetime(ppg.index, unit=unit) # TODO: @Ari: Sampling Frequncy considered???
+    if isinstance(ppg.index, pd.RangeIndex):
+        ppg.index = list(ppg.index)
 
-    ppg = ppg.interpolate(method='time')
+    #ppg = ppg.interpolate(method='time')
     ppg = ppg - ppg.min() # TODO: @Ari: If we do it for each cycle seperately, features based on ppg values might be wrong because offset will be different!!! (e.g. SUT_VAL or statistical values)
 
     peaks = signal.find_peaks(ppg.values, distance=factor*sampling_frequency)[0]
     if len(peaks) == 0:
         return pd.DataFrame()
-    sys_peak_ts = ppg.index[peaks[0]] # TODO: @Ari: ASSUMING SYS PEAK IS ALWAYS FIRST MAXIMA > clean signal assumption (maybe add checks e.g. check peak height dictionary?)
-    sys_peak = (sys_peak_ts - ppg.index.min()).total_seconds()
+    sys_peak_ts = ppg.index[peaks[0]]
+    sys_peak = (sys_peak_ts - ppg.index.min())
 
     if verbose:
         plt.figure()
-        plt.xlim((ppg.index.min(), ppg.index.max()))
-        plt.scatter(ppg.index[peaks], ppg[peaks])
+        plt.scatter(ppg.index[peaks[0]], ppg.values[peaks[0]])
         plt.plot(ppg.index, ppg.values)
 
     # second derviative of the PPG signal
