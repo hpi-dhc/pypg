@@ -941,12 +941,15 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         sys_peak_ts_curr = ppg.index[peak]
 
         if i > 0:
-            ibi_series = ibi_series.append(pd.Series([sys_peak_ts_curr - sys_peak_ts_prior]), ignore_index=True)
+            ibi_series = ibi_series.append(pd.Series([(sys_peak_ts_curr - sys_peak_ts_prior)/sampling_frequency]), ignore_index=True)
     
     if len(ibi_series) < 5: # TODO: Check for minimum size (Ultra short HRV)
         if verbose:
             print('PPG Segment too small! Please provide bigger PPG segment')
         return pd.DataFrame()
+    else:
+        if verbose:
+            print('IBI-Series: ', ibi_series.values)
 
     temporalHRVFeatures = _temporal_hrv(ibi_series)
     frequencyHRVFeatures = _frequency_hrv(ibi_series, sampling_frequency)
