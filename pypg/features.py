@@ -1023,10 +1023,14 @@ def _temporal_hrv(ibi_series):
 	
 	# Non-Linear Parameters
     tolerance = ibi_series.std() * 0.2
+
+    SampEn = float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance))
+    if SampEn == np.inf:
+        SampEn = np.nan
 	
     # features
     temporalHRVFeatures = pd.DataFrame({
-                            'SampEn': float(nolds.sampen(ibi_series.to_numpy(), 2, tolerance)),
+                            'SampEn': SampEn,
                             'MeanNN': ibi_series.mean(),
                             'MeanHR': instantaneous_hr.mean(),
                             'MaxHR': rolling_mean_hr.max(),
