@@ -956,7 +956,7 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     frequencyHRVFeatures = _frequency_hrv(CP, sampling_frequency)
 
     segment_features = pd.concat([temporalHRVFeatures.reset_index(drop=True), frequencyHRVFeatures], axis=1)
-    segment_features = pd.concat([segment_features, pd.DataFrame({'CP_mean': CP.mean(), 'CP_var': CP.var()})])
+    segment_features = pd.concat([segment_features.reset_index(drop=True), pd.DataFrame({'CP_mean': CP.mean(), 'CP_var': CP.var()}, index=[0])], axis=1)
 
     if verbose:
         print('Cycle Features within Segment:')
