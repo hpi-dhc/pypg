@@ -99,7 +99,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         segment_features = pd.concat([segment_features, time_cycle(cycle,
                                          sampling_frequency, factor, unit, verbose=verbose)],
                                          ignore_index=True)
-        if i > 0:
+        '''if i > 0:
             segment_features.loc[cur_index-1, 'CP'] = (
                 segment_features.loc[cur_index, 'sys_peak_ts'] - segment_features.loc[cur_index-1,
                 'sys_peak_ts'])/sampling_frequency
@@ -109,7 +109,7 @@ def time(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
     # last cycle or only cycle need to relies on the difference between the general peaks
     all_peaks_index = len(all_peaks)-1
     segment_features.loc[cur_index-1, 'CP'] = (
-        all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency
+        all_peaks[all_peaks_index] - all_peaks[all_peaks_index-1])/sampling_frequency'''
 
     if verbose:
         print('Cycle Features within Segment:')
@@ -936,27 +936,28 @@ def hrv(ppg, sampling_frequency, factor=0.6667, unit='ms', verbose=False):
         print('All Peaks: ', all_peaks)
 
     sys_peak_ts_curr = 0
-    ibi_series = pd.Series()
+    CP = pd.Series()
     for i, peak in enumerate(all_peaks):
         sys_peak_ts_prior = sys_peak_ts_curr
         sys_peak_ts_curr = ppg.index[peak]
 
         if i > 0:
-            ibi_series = ibi_series.append(pd.Series([(sys_peak_ts_curr - sys_peak_ts_prior)/sampling_frequency]), ignore_index=True)
+            CP = CP.append(pd.Series([(sys_peak_ts_curr - sys_peak_ts_prior)/sampling_frequency]), ignore_index=True)
     
-    if len(ibi_series) < 5: # TODO: Check for minimum size (Ultra short HRV)
+    if len(CP) < 5: # TODO: Check for minimum size (Ultra short HRV)
         if verbose:
             print('PPG Segment too small! Please provide bigger PPG segment')
         return pd.DataFrame()
     else:
         if verbose:
-            print('IBI-Series: ', ibi_series.values)
+            print('IBI-Series: ', CP.values)
 
-    temporalHRVFeatures = _temporal_hrv(ibi_series)
-    frequencyHRVFeatures = _frequency_hrv(ibi_series, sampling_frequency)
+    temporalHRVFeatures = _temporal_hrv(CP)
+    frequencyHRVFeatures = _frequency_hrv(CP, sampling_frequency)
 
     segment_features = pd.concat([temporalHRVFeatures.reset_index(drop=True), frequencyHRVFeatures], axis=1)
- 
+    segment_features = pd.concat([segment_features, pd.DataFrame({'CP_mean': CP.mean(), 'CP_var': CP.var()})])
+
     if verbose:
         print('Cycle Features within Segment:')
         print(segment_features)
