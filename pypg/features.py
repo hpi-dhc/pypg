@@ -977,7 +977,7 @@ def _temporal_hrv(ibi_series):
     nn_threshold = 50 # TODO: @Ari: HOW TO SET THIS VALUE? > IBI_SERIES VALUES around 0.88 ish. Affect computation of nn_xx /// was 50 before
     
     # Prepare data
-    instantaneous_hr = 60 / (ibi_series / 1000) # TODO: @Ari: why divided by 1000? from ms to s?
+    instantaneous_hr = 60 / ibi_series #/1000  # TODO: @Ari: why divided by 1000? from ms to s? > if ibi series in ms but for MIMIC it is in s
     rolling_mean_hr = instantaneous_hr.rolling(window).mean()
     rolling_24h = ibi_series.rolling(window)
     
